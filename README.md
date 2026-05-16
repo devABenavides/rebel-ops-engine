@@ -30,5 +30,5 @@ Opens at `http://localhost:3000`.
 
 ```bash
 cd rebel_ops_engine
-pytest tests/ -v
+python -m pytest tests/ -v
 ```

@@ -38,13 +38,16 @@ cd rebel_ops_engine/frontend && npm run dev
 - `models.py` — Message, Task, EncryptedTransmission, CalendarBooking, DailyBriefing dataclasses + enums (Channel, MessageStatus, Priority, SecurityRisk, JediCaseType, Category, Owner)
 - `security.py` — Risk scoring, category→owner/team mapping, routing tables, keyword detection
 - `clients.py` — Integration client interfaces (WhatsAppClient, HologramEmailClient, CalendarClient, NotificationClient, ReportDeliveryClient)
-- `agents/` — 9 agents in pipeline order
+- `agents/` — 9 agents in pipeline order (NotificationAgent uses channel-specific templates: WhatsApp, hologram, quarantine, BB-8 alert, etc.)
 - `demo.py` — 16 spec-aligned demo messages
 - `briefing.py` — Daily Hologram Briefing generator with full category/owner breakdown
 - `.env.example` — Environment variable template for replacing mocked integrations
-- `tests/test_engine.py` — 40 integration tests
-- `tests/test_agents.py` — 39 isolated unit tests
-- `frontend/src/` — React app with 3 components (4 dead removed)
+- `tests/test_engine.py` — 51 integration tests
+- `tests/test_agents.py` — 70 isolated unit tests
+- `tests/test_security.py` — 54 pure unit tests for security functions
+- `tests/test_briefing.py` — 15 unit tests for briefings
+- `tests/conftest.py` — Shared fixtures (base_message, fresh_router, etc.)
+- `frontend/src/` — React app with 8 page-level components + MorningBriefing CSS
 - `pyproject.toml` — Ruff linter config
 
 ## Agent pipeline order
@@ -92,3 +95,14 @@ Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the re
 - `POST /demo/run-all` — Load demo + return routing summary
 - `GET /briefings/daily` — Get daily Hologram Briefing
 - `POST /briefings/generate` — Generate briefing
+- `GET /api/briefing/inbox` — Morning Briefing inbox data (messages, tasks, delegation, schedule)
+- `GET /api/integrations` — Integration status (which services are configured)
+- `GET /api/requests/<id>/trace` — Get pipeline trace for a request
+- `GET /webhooks/whatsapp` — WhatsApp webhook verification
+- `POST /webhooks/whatsapp` — WhatsApp webhook incoming message
+- `POST /webhooks/gmail` — Gmail webhook notification
+- `POST /api/intake` — Submit a message (legacy, specify channel)
+- `GET /api/agents` — List all 9 agents in the pipeline
+- `GET /api/calendar` — List public calendar bookings
+- `POST /api/reset` — Reset all in-memory state
+- `POST /webhooks/clickup` — ClickUp webhook event

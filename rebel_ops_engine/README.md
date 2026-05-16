@@ -31,38 +31,72 @@ The demo uses Star Wars-inspired names and scenarios but no copyrighted logos, m
 ## Architecture
 
 ```
-Sender (WhatsApp / Email)
-  │
-  ▼
-IntakeAgent ──► DarkSideSecurityAgent ──► C3POClassifierAgent
-                                              │
-                                              ▼
-                                         RoutingAgent (creates Task)
-                                              │
-                                              ▼
-                                     YodaEncryptionAgent
-                                    (creates EncryptedTransmission)
-                                              │
-                                              ▼
-                                       NotificationAgent
-                                      (channel-specific templates)
-                                              │
-                                              ▼
-                                        CalendarAgent
-                                      (calendar availability)
-                                              │
-                                              ▼
-                                        ReportingAgent
-                                              │
-                                              ▼
-                                      ErrorProtocolAgent
-                                     (creates error tasks)
+                       ┌─────────────────────┐
+                       │  WhatsApp / Email   │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────┐
+                       │    IntakeAgent       │
+                       │  (normalize request) │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────┐
+                       │DarkSideSecurityAgent │──HIGH RISK──► QUARANTINED
+                       │  (risk scoring)      │              (blocked, notified)
+                       └─────────┬───────────┘
+                                 │ low / medium
+                                 ▼
+                       ┌─────────────────────┐
+                       │C3POClassifierAgent   │
+                       │(category + owner)    │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────┐
+                       │   RoutingAgent       │──REVIEW──► SECURITY_REVIEW
+                       │  (creates Task)      │            (held, no task)
+                       └─────────┬───────────┘
+                                 │ routed
+                                 ▼
+                       ┌─────────────────────┐
+                       │YodaEncryptionAgent   │
+                       │(EncryptedTransmit.)  │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────────────┐
+                       │      NotificationAgent       │
+                       │  WhatsApp · Hologram · BB-8  │
+                       │  Quarantine · Ahsoka · Din   │
+                       │  Luke/Ben · Yoda             │
+                       └─────────────┬───────────────┘
+                                     │
+                                     ▼
+                       ┌─────────────────────┐
+                       │    CalendarAgent     │
+                       │(CalendarBooking rec.)│
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────┐
+                       │   ReportingAgent     │
+                       │  (Daily Briefing)    │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────────┐
+                       │ ErrorProtocolAgent   │
+                       │(error tasks, ClickUp)│
+                       └─────────────────────┘
 ```
 
-High-risk messages → quarantined by DarkSideSecurityAgent, security team notified.
-Yoda strategy → encrypted, `EncryptedTransmission` record created.
-Every routed request → `Task` record created.
-Leia's private calendar → never exposed via public API.
+- High-risk messages → quarantined by DarkSideSecurityAgent, security team notified (no Task created)
+- Medium-risk → held at RoutingAgent as `SECURITY_REVIEW` (classified, notified, no Task)
+- Yoda strategy → encrypted by YodaEncryptionAgent, `EncryptedTransmission` record created
+- Every routed request → `Task` record created
+- Leia's private calendar → stored but never exposed via public API
 
 ---
 
@@ -101,7 +135,8 @@ Opens at `http://localhost:3000` and proxies API requests to the backend.
 Copy `.env.example` to `.env` and fill in values when integrating real APIs:
 
 ```bash
-cp .env.example .env
+cp .env.example .env        # Linux/macOS
+copy .env.example .env      # Windows
 ```
 
 No environment variables are needed for the demo — all integrations are mocked.
@@ -154,7 +189,7 @@ curl -X POST http://localhost:5000/api/reset
 ### Run tests
 
 ```bash
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
 ### Lint
@@ -168,7 +203,7 @@ ruff check .
 ## API Endpoints
 
 | Method | Path | Description |
-|---|---|---|
+|---|---|---|---|
 | GET | `/` | Service info + endpoint list |
 | GET | `/health` | Health check |
 | POST | `/requests/whatsapp` | Submit via Intergalactic WhatsApp |
@@ -186,8 +221,15 @@ ruff check .
 | GET | `/api/briefing` | Daily Hologram Briefing |
 | GET | `/briefings/daily` | Alias for briefing |
 | POST | `/briefings/generate` | Generate briefing explicitly |
+| GET | `/api/briefing/inbox` | Morning Briefing inbox data (messages, tasks, delegation, schedule) |
+| GET | `/api/integrations` | Integration status (which services are configured) |
+| GET | `/api/requests/<id>/trace` | Get pipeline trace for a request |
 | POST | `/api/reset` | Reset all in-memory state |
 | GET | `/api/calendar` | Public calendar bookings |
+| GET | `/webhooks/whatsapp` | WhatsApp webhook verification |
+| POST | `/webhooks/whatsapp` | WhatsApp webhook incoming message |
+| POST | `/webhooks/gmail` | Gmail webhook notification |
+| POST | `/webhooks/clickup` | ClickUp webhook event |
 
 ---
 
@@ -298,33 +340,43 @@ Fields: `message_id`, `requestor`, `date`, `time`, `duration`, `subject`, `is_pr
 
 ---
 
-## How to Replace Mocked Integrations
+## Integration Modules
 
-| Mock | File | Real replacement |
-|---|---|---|
-| In-memory message store | `agents/reporter.py` | PostgreSQL / SQLite via SQLAlchemy |
-| In-memory calendar | `agents/calendar.py` | Google Calendar API / CalDAV |
-| Keyword classifier | `agents/classifier.py` | NLP classifier (spaCy, BERT, OpenAI) |
-| Security scanner | `agents/security_agent.py` | Real-time threat intel API / ML model |
-| Encryption | `agents/encryption.py` | AES-256 / GPG / libsodium |
-| WhatsApp | `clients.py` → `WhatsAppClient` | Twilio WhatsApp Business API |
-| Email | `clients.py` → `HologramEmailClient` | SMTP / SendGrid / Mailgun |
-| Calendar | `clients.py` → `CalendarClient` | Google Calendar API |
-| Notifications | `clients.py` → `NotificationClient` | Slack SDK / email / Twilio |
-| Report delivery | `clients.py` → `ReportDeliveryClient` | Email / Slack / PDF generation |
+Each integration lives in `integrations/` and auto-detects credentials. If credentials are present, it makes real API calls. If not, it falls back to a mock with logging.
 
-### Pattern for replacing a client
+| Integration | File | Real API | Mock fallback |
+|---|---|---|---|
+| Message store | `agents/reporter.py` | PostgreSQL / SQLite via SQLAlchemy | In-memory dict |
+| Calendar (booking) | `agents/calendar.py` | Google Calendar API / CalDAV | In-memory list |
+| Classifier | `agents/classifier.py` | NLP classifier (spaCy, BERT, OpenAI) | Keyword matching |
+| Security scanner | `agents/security_agent.py` | Threat intel API / ML model | Keyword scoring |
+| Encryption | `agents/encryption.py` | AES-256 / GPG / libsodium | Reverse-string cipher |
+| WhatsApp | `integrations/whatsapp_client.py` | Meta WhatsApp Cloud API | Logged mock |
+| Email | `integrations/gmail_client.py` | Gmail API (OAuth 2.0) | Logged mock |
+| Calendar (sync) | `integrations/calendar_client.py` | Google Calendar API (OAuth 2.0) | Logged mock |
+| Notifications | `integrations/clickup_client.py` | ClickUp API | Logged mock |
+| Task sync | `integrations/clickup_client.py` | ClickUp API | Logged mock |
+| Report delivery | `clients.py` → `ReportDeliveryClient` | Email / Slack | Logged mock |
+
+### Pattern for extending an integration
+
+Each module in `integrations/` follows the same pattern. Here's the WhatsApp module as an example — it already calls the real Meta API when credentials are set:
 
 ```python
-# In clients.py, swap the mock implementation:
-class WhatsAppClient:
-    """Replace with real Twilio client."""
-    def send_message(self, to: str, body: str) -> dict:
-        # from twilio.rest import Client
-        # client = Client(account_sid, auth_token)
-        # return client.messages.create(body=body, from_=from_, to=to)
-        pass
+# integrations/whatsapp_client.py
+def send_message(to: str, body: str) -> dict:
+    phone_number_id = get("WHATSAPP_PHONE_NUMBER_ID")
+    access_token = get("WHATSAPP_ACCESS_TOKEN")
+    if not phone_number_id or not access_token:
+        logger.info("[WHATSAPP MOCK] To: %s | Body: %s", to, body[:80])
+        return {"status": "mocked", "channel": "whatsapp", "to": to}
+    # Real Meta WhatsApp Cloud API call
+    url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+    resp = requests.post(url, headers={"Authorization": f"Bearer {access_token}"}, json={...})
+    return resp.json()
 ```
+
+To add a new integration, create a new module in `integrations/`, add the env vars to `.env.example`, and wire it into the pipeline agent.
 
 The `.env.example` file contains all the environment variables needed for real integrations.
 
