@@ -77,27 +77,28 @@ function FlowCard({ msg }) {
 
   return (
     <div className="flow-card" style={{
-      border: `1px solid ${isQuarantined ? '#6b1a1a' : '#2a3346'}`,
+      border: `1px solid ${isQuarantined ? '#ef5350' : '#e3ddd0'}`,
+      background: '#fdfcf9', borderRadius: 12, padding: 16, marginBottom: 12,
     }}>
       <div className="flow-card-header" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10,
       }}>
         <div>
-          <div style={{ fontSize: 12, color: '#8892a4' }}>
+          <div style={{ fontSize: 12, color: '#6b6b66' }}>
             {msg.channel === 'intergalactic_whatsapp' ? '\uD83D\uDCAC Intergalactic WhatsApp' : '\u2709\uFE0F Hologram Email'}
             {' \u2022 '}
             {new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
-          <div style={{ fontWeight: 700, fontSize: 15, marginTop: 2, color: '#f0f0f0' }}>{msg.sender}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginTop: 2, color: '#1c1c1f' }}>{msg.sender}</div>
         </div>
         <div style={{
           padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
-          ...(isQuarantined ? { background: '#3d1b1b', color: '#ef5350' }
-            : isEncrypted ? { background: '#2d2b1b', color: '#ffd54f' }
-            : msg.status === 'completed' ? { background: '#1b3d2e', color: '#4caf7d' }
-            : msg.status === 'error' ? { background: '#3d1b1b', color: '#ef5350' }
-            : msg.status === 'security_review' ? { background: '#2d2b1b', color: '#ff9800' }
-            : { background: '#1e2435', color: '#90a4ae' }),
+          ...(isQuarantined ? { background: '#f6e4dd', color: '#c8775c' }
+            : isEncrypted ? { background: '#f1e7ce', color: '#8e6f1f' }
+            : msg.status === 'completed' ? { background: '#e3f0e3', color: '#2d6b3f' }
+            : msg.status === 'error' ? { background: '#f6e4dd', color: '#c8775c' }
+            : msg.status === 'security_review' ? { background: '#f1e7ce', color: '#8e6f1f' }
+            : { background: '#e3ebf2', color: '#3a6a8a' }),
         }}>
           {isQuarantined ? '\u26D4 QUARANTINED'
             : isEncrypted ? '\uD83D\uDD12 ENCRYPTED'
@@ -107,18 +108,18 @@ function FlowCard({ msg }) {
         </div>
       </div>
 
-      <div style={{ fontSize: 13, color: '#c8d6e5', lineHeight: 1.5, marginBottom: 10, padding: '8px 10px', background: '#0b0e14', borderRadius: 4 }}>
+      <div style={{ fontSize: 13, color: '#3b3b3f', lineHeight: 1.5, marginBottom: 10, padding: '8px 10px', background: '#efe9dd', borderRadius: 4 }}>
         {isEncrypted ? '[Encrypted Yoda Strategy - Content Hidden]' : (msg.content && msg.content.length > 200 ? msg.content.slice(0, 200) + '...' : msg.content)}
       </div>
 
       {isQuarantined ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#1a0d0d', borderRadius: 4, color: '#ef5350', fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#f6e4dd', borderRadius: 4, color: '#c8775c', fontSize: 12 }}>
           <span style={{ fontSize: 18, fontWeight: 700 }}>{'\u26D4'}</span>
           <div>
             <div style={{ fontWeight: 700 }}>Security Threat Blocked</div>
-            <div style={{ color: '#ff9090', marginTop: 2 }}>{msg.error || 'High-risk content detected'}</div>
+            <div style={{ color: '#c8775c', marginTop: 2 }}>{msg.error || 'High-risk content detected'}</div>
             {msg.dark_side_indicators?.length > 0 && (
-              <div style={{ color: '#8892a4', marginTop: 2 }}>Indicators: {msg.dark_side_indicators.join(', ')}</div>
+              <div style={{ color: '#6b6b66', marginTop: 2 }}>Indicators: {msg.dark_side_indicators.join(', ')}</div>
             )}
           </div>
         </div>
@@ -173,7 +174,7 @@ export default function CommandCenter() {
     <div style={{ display: 'flex', gap: 20 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <h2 style={{ marginBottom: 4 }}>Command Center</h2>
-        <p style={{ color: '#8892a4', fontSize: 13, marginBottom: 20 }}>
+        <p style={{ color: '#6b6b66', fontSize: 13, marginBottom: 20 }}>
           See every request processed by the Rebellion today.
         </p>
 
@@ -181,7 +182,7 @@ export default function CommandCenter() {
           <div className="card"><h3>Total Requests</h3><div className="value">{messages.length}</div></div>
           <div className="card"><h3>Completed</h3><div className="value" style={{ color: '#4caf7d' }}>{completed.length}</div></div>
           <div className="card"><h3>{'\u26D4'} Threats Blocked</h3><div className="value" style={{ color: '#ef5350' }}>{quarantined.length}</div></div>
-          <div className="card"><h3>{'\uD83D\uDD12'} Encrypted</h3><div className="value" style={{ color: '#ffd54f' }}>{encrypted.length}</div></div>
+          <div className="card"><h3>{'\uD83D\uDD12'} Encrypted</h3><div className="value" style={{ color: '#d4872a' }}>{encrypted.length}</div></div>
         </div>
 
         <div className="btn-group">
@@ -194,7 +195,7 @@ export default function CommandCenter() {
         {loading ? <div className="loader">Loading...</div> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.length === 0 && (
-              <div className="card" style={{ textAlign: 'center', color: '#8892a4', padding: 40 }}>
+              <div className="card" style={{ textAlign: 'center', color: '#6b6b66', padding: 40 }}>
                 No requests yet. Click &quot;Load Demo&quot; in the sidebar to see the system in action.
               </div>
             )}
@@ -212,31 +213,15 @@ export default function CommandCenter() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {leiaItems.map(m => (
-                  <div key={m.id} style={{ padding: '8px 10px', background: '#1a2740', borderRadius: 4 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{m.sender}</div>
-                    <div style={{ color: '#8892a4', fontSize: 11, marginTop: 2 }}>
+                  <div key={m.id} style={{ padding: '8px 10px', background: '#fdfcf9', border: '1px solid #e3ddd0', borderRadius: 12 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1c1c1f' }}>{m.sender}</div>
+                    <div style={{ color: '#6b6b66', fontSize: 11, marginTop: 2 }}>
                       {CATEGORY_LABELS[m.category] || m.category}
                     </div>
                   </div>
                 ))}
               </div>
             )}
-
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3346' }}>
-              <h3 style={{ marginBottom: 8 }}>{'\uD83D\uDCCB'} Today&apos;s Delegation</h3>
-              {(() => {
-                const counts = {}
-                messages.forEach(m => {
-                  if (m.owner) counts[m.owner] = (counts[m.owner] || 0) + 1
-                })
-                return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([owner, count]) => (
-                  <div key={owner} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', color: '#a0aaba' }}>
-                    <span>{owner}</span>
-                    <span style={{ fontWeight: 700, color: '#4fc3f7' }}>{count}</span>
-                  </div>
-                ))
-              })()}
-            </div>
           </div>
         </div>
       )}

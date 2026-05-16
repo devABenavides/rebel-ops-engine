@@ -237,13 +237,13 @@ export default function WorkflowGraph() {
   return (
     <div>
       <h2 style={{ marginBottom: 4 }}>System Architecture</h2>
-      <p style={{ color: '#8892a4', fontSize: 13, marginBottom: 16 }}>
+      <p style={{ color: '#6b6b66', fontSize: 13, marginBottom: 16 }}>
         Click any node to learn how each component works. This is the full engine powering the Rebellion.
       </p>
 
       <div style={{
         overflowX: 'auto', overflowY: 'hidden',
-        background: '#0f131e', border: '1px solid #2a3346', borderRadius: 8,
+        background: '#efe9dd', border: '1px solid #2a3346', borderRadius: 8,
         padding: '10px 0',
       }}>
         <svg width={svgWidth} height={svgHeight} style={{ display: 'block', minWidth: svgWidth }}>
@@ -281,13 +281,13 @@ export default function WorkflowGraph() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <span style={{ fontSize: 24 }}>{selected.icon}</span>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: '#f0f0f0' }}>{selected.label}</div>
-              <div style={{ fontSize: 12, color: '#8892a4' }}>{selected.subtitle}</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#1c1c1f' }}>{selected.label}</div>
+              <div style={{ fontSize: 12, color: '#6b6b66' }}>{selected.subtitle}</div>
             </div>
           </div>
-          <p style={{ fontSize: 13, color: '#c8d6e5', lineHeight: 1.6 }}>{selected.detail}</p>
+          <p style={{ fontSize: 13, color: '#3b3b3f', lineHeight: 1.6 }}>{selected.detail}</p>
           {selected.outputs && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#8892a4' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#6b6b66' }}>
               <strong>Outputs:</strong>{' '}
               {selected.outputs.map((o, i) => (
                 <span key={i} style={{ color: '#4fc3f7' }}>

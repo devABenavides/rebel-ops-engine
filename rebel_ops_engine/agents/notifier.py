@@ -15,6 +15,26 @@ email = HologramEmailClient()
 notifier = NotificationClient()
 
 
+def _proposal_template(summary: str, date: str, slots: list[str], message_id: str) -> str:
+    lines = [
+        "Rebel Command — Calendar Booking Confirmation",
+        "==============================================",
+        "",
+        f"Request: {summary}",
+        f"Date: {date}",
+        "",
+        "Available 30-minute slots:",
+    ]
+    for i, slot in enumerate(slots):
+        lines.append(f"  [{i + 1}] {slot} — http://localhost:5000/api/calendar/confirm/{message_id}/{i}")
+    lines.extend([
+        "",
+        "Click a link to confirm your preferred time.",
+        "May the Force be with you.",
+    ])
+    return "\n".join(lines)
+
+
 def _hologram_template(category: str, owner: str, status: str, next_action: str) -> str:
     return (
         "Hologram Transmission Received\n"
@@ -118,6 +138,21 @@ class NotificationAgent(Agent):
                 alert = _quarantine_template(message.sender, message.dark_side_indicators)
                 notifier.notify("Security Team", alert)
             message.trace.append({"agent": self.name, "action": "notified", "details": {"recipient": "Security Team", "template": "quarantine_alert"}})
+            if self.name not in message.processed_by:
+                message.processed_by.append(self.name)
+            return message
+
+        if message.status == MessageStatus.AWAITING_CONFIRMATION and message.proposals:
+            from agents.calendar import _extract_date as _cal_date
+            summary = message.summary or message.content[:100]
+            raw_date = _cal_date(message.content)
+            body = _proposal_template(summary, raw_date, message.proposals, message.id)
+            recipient = message.sender_contact or message.sender
+            email.send_email(recipient, "Rebel Command: Confirm Your Calendar Slot", body)
+            message.trace.append({
+                "agent": self.name, "action": "notified",
+                "details": {"recipients": [recipient], "template": "calendar_proposal"},
+            })
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
             return message

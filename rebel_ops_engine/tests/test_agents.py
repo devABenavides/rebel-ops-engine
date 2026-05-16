@@ -4,11 +4,21 @@ from uuid import uuid4
 
 import pytest
 
-from agents.calendar import CalendarAgent
+from agents.calendar import CalendarAgent, _extract_date, _extract_time
 from agents.classifier import C3POClassifierAgent
 from agents.encryption import YodaEncryptionAgent
 from agents.error_handler import ErrorProtocolAgent
 from agents.intake import IntakeAgent
+from agents.notifier import (
+    NotificationAgent,
+    _ahsoka_template,
+    _bb8_alert,
+    _din_template,
+    _hologram_template,
+    _luke_template,
+    _quarantine_template,
+    _yoda_template,
+)
 from agents.reporter import ReportingAgent
 from agents.router import RoutingAgent
 from agents.security_agent import DarkSideSecurityAgent
@@ -134,6 +144,15 @@ class TestDarkSideSecurityAgent:
         result = agent.process(msg)
         assert result.status not in (MessageStatus.FLAGGED, MessageStatus.SECURITY_REVIEW, MessageStatus.QUARANTINED)
 
+    def test_security_review_threshold(self):
+        agent = DarkSideSecurityAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Scout Leader", content="infiltration attempt detected")
+        result = agent.process(msg)
+        assert result.status == MessageStatus.SECURITY_REVIEW
+        assert result.security_risk == "medium"
+        assert result.risk_score == 25
+        assert "infiltration" in result.dark_side_indicators
+
 
 # ---- C3POClassifierAgent ----
 
@@ -180,6 +199,20 @@ class TestC3POClassifierAgent:
         result = agent.process(base_message)
         assert len(result.suggested_next_action) > 0
 
+    def test_soldier_support_classification(self):
+        agent = C3POClassifierAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Trooper", content="soldier needs medical aid")
+        result = agent.process(msg)
+        assert result.category == Category.SOLDIER_SUPPORT
+
+    def test_jedi_case_type_fallback(self):
+        agent = C3POClassifierAgent()
+        msg = Message(channel=Channel.HOLOGRAM_EMAIL, sender="Jedi Council", content="We need guidance for the young")
+        result = agent.process(msg)
+        assert result.category == Category.JEDI_TRAINING_DIPLOMACY
+        assert result.requires_jedi is True
+        assert result.jedi_case_type == "none"
+
 
 # ---- RoutingAgent ----
 
@@ -218,6 +251,27 @@ class TestRoutingAgent:
         msg.category = Category.JEDI_TRAINING_DIPLOMACY
         result = agent.process(msg)
         assert result.owner == Owner.GROGU_CARE
+
+    def test_security_review_hold(self):
+        agent = RoutingAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Test", content="test")
+        msg.category = Category.OTHER
+        msg.status = MessageStatus.SECURITY_REVIEW
+        result = agent.process(msg)
+        assert len(agent.get_tasks()) == 0
+        assert any(t["action"] == "held" for t in result.trace)
+
+    def test_clickup_sync(self):
+        agent = RoutingAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Test", content="test")
+        msg.category = Category.LOGISTICS
+        agent.process(msg)
+        import time
+        time.sleep(0.5)
+        results = agent.get_clickup_results()
+        assert len(results) == 1
+        task_id = list(results.keys())[0]
+        assert results[task_id]["status"] in ("mocked", "initiated")
 
 
 # ---- YodaEncryptionAgent ----
@@ -292,6 +346,21 @@ class TestCalendarAgent:
         assert len(agent.get_all_bookings()) == 1
         agent.reset()
         assert len(agent.get_all_bookings()) == 0
+
+    def test_extract_date_found(self):
+        assert _extract_date("Let's meet next Tuesday") != "unknown"
+        assert _extract_date("Schedule for tomorrow") != "unknown"
+        assert _extract_date("Event on 2024-05-15") != "unknown"
+
+    def test_extract_date_not_found(self):
+        assert _extract_date("No date mentioned here") == "unknown"
+
+    def test_extract_time_found(self):
+        assert _extract_time("Meet at 14:00") != "unknown"
+        assert _extract_time("At 3pm we start") != "unknown"
+
+    def test_extract_time_not_found(self):
+        assert _extract_time("No time mentioned here") == "unknown"
 
 
 # ---- ReportingAgent ----
@@ -377,3 +446,178 @@ class TestErrorProtocolAgent:
         assert len(agent.get_error_tasks()) == 1
         agent.reset()
         assert len(agent.get_error_tasks()) == 0
+
+    def test_clickup_sync(self):
+        agent = ErrorProtocolAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Test", content="test")
+        msg.status = MessageStatus.QUARANTINED
+        msg.error = "test"
+        agent.process(msg)
+        import time
+        time.sleep(0.5)
+        results = agent.get_clickup_results()
+        assert len(results) == 1
+        task_id = list(results.keys())[0]
+        assert results[task_id]["status"] in ("mocked", "initiated")
+
+
+# ---- NotificationAgent ----
+
+class TestNotificationAgent:
+    def test_name(self):
+        agent = NotificationAgent()
+        assert agent.name == "NotificationAgent"
+
+    def test_hologram_template(self):
+        result = _hologram_template("logistics", "Han Solo", "routed", "Deliver supplies")
+        assert "Hologram Transmission Received" in result
+        assert "logistics" in result
+        assert "Han Solo" in result
+        assert "Deliver supplies" in result
+
+    def test_quarantine_template(self):
+        result = _quarantine_template("Darth Vader", ["infiltration", "spying"])
+        assert "SECURITY ALERT" in result
+        assert "Darth Vader" in result
+        assert "infiltration, spying" in result
+        assert "quarantined" in result
+
+    def test_bb8_alert(self):
+        result = _bb8_alert("Stormtroopers inbound", "critical")
+        assert "BB-8 ALERT" in result
+        assert "Stormtroopers inbound" in result
+        assert "critical" in result
+
+    def test_ahsoka_template(self):
+        result = _ahsoka_template("Suspicious contact", "high", "low", True, "Review dossier")
+        assert "SPECIAL MISSION REVIEW" in result
+        assert "Ahsoka Tano" in result
+        assert "Suspicious contact" in result
+        assert "high" in result
+        assert "Leia Required: Yes" in result
+
+    def test_din_template(self):
+        result = _din_template("Extract informant", "high", False)
+        assert "DIN DJARIN PROTECTION PROTOCOL ACTIVATED" in result
+        assert "Extract informant" in result
+        assert "Leia Visibility: No" in result
+
+    def test_luke_template(self):
+        result = _luke_template("Mediation on Bothawui", "mediation", "high", "Send Luke")
+        assert "JEDI TRAINING & DIPLOMACY ASSIGNMENT" in result
+        assert "Luke Skywalker + Ben Kenobi" in result
+        assert "mediation" in result
+        assert "Send Luke" in result
+
+    def test_yoda_template(self):
+        result = _yoda_template("Should we join openly?", "low", "Encrypt and transmit")
+        assert "ENCRYPTED JEDI TRANSMISSION" in result
+        assert "Master Yoda" in result
+        assert "Should we join openly?" in result
+        assert "Encrypt and transmit" in result
+
+    def test_process_quarantined(self, base_message):
+        agent = NotificationAgent()
+        msg = base_message
+        msg.status = MessageStatus.QUARANTINED
+        msg.dark_side_indicators = ["infiltration"]
+        msg.error = "High-risk content"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+        traces = [t for t in result.trace if t["agent"] == "NotificationAgent"]
+        assert len(traces) == 1
+
+    def test_process_error(self, base_message):
+        agent = NotificationAgent()
+        msg = base_message
+        msg.status = MessageStatus.ERROR
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_whatsapp_channel(self):
+        agent = NotificationAgent()
+        msg = Message(
+            channel=Channel.INTERGALACTIC_WHATSAPP,
+            sender="Test User",
+            content="Need supplies",
+        )
+        msg.category = Category.LOGISTICS
+        msg.owner = Owner.HAN_SOLO
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Need supplies for the mission"
+        msg.suggested_next_action = "Coordinate delivery"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_email_channel(self):
+        agent = NotificationAgent()
+        msg = Message(
+            channel=Channel.HOLOGRAM_EMAIL,
+            sender="test@rebel.com",
+            content="Need supplies",
+        )
+        msg.category = Category.LOGISTICS
+        msg.owner = Owner.HAN_SOLO
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Need supplies"
+        msg.suggested_next_action = "Coordinate delivery"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_urgent_security(self):
+        agent = NotificationAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Scout", content="Stormtroopers spotted")
+        msg.category = Category.URGENT_SECURITY
+        msg.owner = Owner.SECURITY_TEAM
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Stormtroopers spotted near base"
+        msg.priority = "high"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_ahsoka_mission(self):
+        agent = NotificationAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Fulcrum", content="Suspicious contact")
+        msg.category = Category.AHSOKA_SPECIAL_MISSION
+        msg.owner = Owner.AHSOKA_TANO
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Suspicious contact needs review"
+        msg.priority = "medium"
+        msg.security_risk = "low"
+        msg.requires_leia = True
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_special_protection(self):
+        agent = NotificationAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Intel", content="Informant needs extraction")
+        msg.category = Category.SPECIAL_PROTECTION
+        msg.owner = Owner.DIN_DJARIN
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Informant extraction required"
+        msg.priority = "high"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_jedi_training(self):
+        agent = NotificationAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Council", content="Mediation needed")
+        msg.category = Category.JEDI_TRAINING_DIPLOMACY
+        msg.owner = Owner.LUKE_BEN
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Mediation between two systems"
+        msg.priority = "medium"
+        msg.jedi_case_type = "mediation"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by
+
+    def test_process_yoda_strategy(self):
+        agent = NotificationAgent()
+        msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Council", content="Should we join?")
+        msg.category = Category.YODA_ENCRYPTED_STRATEGY
+        msg.owner = Owner.YODA
+        msg.status = MessageStatus.ROUTED
+        msg.summary = "Strategic question about joining"
+        msg.security_risk = "low"
+        result = agent.process(msg)
+        assert "NotificationAgent" in result.processed_by

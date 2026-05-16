@@ -13,3 +13,5 @@ build/
 node_modules/
 .vite/
 frontend/dist/
+credentials/*_oauth.json
+credentials/*_token.json

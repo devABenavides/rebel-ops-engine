@@ -1,7 +1,9 @@
 import logging
+import threading
 from uuid import uuid4
 
 from agents.base import Agent
+from integrations import clickup_client
 from models import Message, MessageStatus, Owner, Task
 from security import (
     CATEGORY_NEXT_ACTION,
@@ -15,6 +17,7 @@ logger = logging.getLogger(__name__)
 class RoutingAgent(Agent):
     def __init__(self):
         self._tasks: list[Task] = []
+        self._clickup_results: dict[str, dict] = {}
 
     @property
     def name(self) -> str:
@@ -50,11 +53,16 @@ class RoutingAgent(Agent):
             request_id=message.id,
             owner=message.owner.value,
             assigned_team=message.assigned_team,
-            title=f"{cat_val.replace('_', ' ').title()} — {message.sender}",
+            title=f"{cat_val.replace('_', ' ').title()} - {message.sender}",
             description=message.summary or message.content[:200],
             priority=message.priority,
         )
         self._tasks.append(task)
+
+        self._clickup_results[task.id] = {"status": "initiated"}
+        thread = threading.Thread(target=self._sync_clickup, args=(task, message.content))
+        thread.start()
+
         logger.debug(
             "Routed %s to %s (team: %s, task: %s)",
             message.sender, message.owner.value, message.assigned_team, task.id,
@@ -76,8 +84,29 @@ class RoutingAgent(Agent):
             message.processed_by.append(self.name)
         return message
 
+    def _sync_clickup(self, task: Task, content: str = ""):
+        result = clickup_client.create_task(
+            title=task.title,
+            description=task.description,
+            priority=task.priority,
+            owner=task.owner,
+            team=task.assigned_team,
+            content=content,
+        )
+        self._clickup_results[task.id] = result
+        if result["status"] == "mocked":
+            logger.info("[CLICKUP] Task %s synced (mock)", task.id)
+        elif result["status"] == "created":
+            logger.info("[CLICKUP] Task %s created - id=%s", task.id, result.get("id"))
+        else:
+            logger.warning("[CLICKUP] Task %s failed: %s", task.id, result.get("error"))
+
     def get_tasks(self) -> list[Task]:
         return list(self._tasks)
 
+    def get_clickup_results(self) -> dict[str, dict]:
+        return dict(self._clickup_results)
+
     def reset(self):
         self._tasks.clear()
+        self._clickup_results.clear()

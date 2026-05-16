@@ -16,6 +16,7 @@ class MessageStatus(Enum):
     QUARANTINED = "quarantined"
     ROUTED = "routed"
     ASSIGNED = "assigned"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
     COMPLETED = "completed"
     ERROR = "error"
 
@@ -118,6 +119,7 @@ class Message:
     sender_contact: str = ""
     subject: str = ""
     planet_or_sector: str = ""
+    proposals: list[str] = field(default_factory=list)
     trace: list[dict] = field(default_factory=list)
 
 

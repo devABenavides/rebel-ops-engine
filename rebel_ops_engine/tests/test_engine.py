@@ -490,3 +490,106 @@ def test_reset(client):
     assert len(resp.get_json()) == 0
     resp = client.get("/tasks")
     assert len(resp.get_json()) == 0
+
+# ---- Webhooks ----
+def test_whatsapp_webhook_verify_valid(client):
+    import os
+    os.environ["WHATSAPP_VERIFY_TOKEN"] = "rebel_ops_verify"
+    resp = client.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=rebel_ops_verify&hub.challenge=12345")
+    assert resp.status_code == 200
+    assert resp.get_data(as_text=True) == "12345"
+
+
+
+
+def test_whatsapp_webhook_verify_invalid(client):
+    resp = client.get("/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong_token&hub.challenge=12345")
+    assert resp.status_code == 403
+
+
+def test_whatsapp_webhook_post(client):
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "messages": [{
+                        "from": "15551234567",
+                        "text": {"body": "Hello from WhatsApp webhook"},
+                    }],
+                },
+            }],
+        }],
+    }
+    resp = client.post("/webhooks/whatsapp", json=payload, content_type="application/json")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "ok"}
+
+
+def test_gmail_webhook_post(client):
+    payload = {"message": {"data": "test"}}
+    resp = client.post("/webhooks/gmail", json=payload, content_type="application/json")
+    assert resp.status_code == 200
+
+
+def test_clickup_webhook_post(client):
+    payload = {"event": "task_created", "task_id": "abc123"}
+    resp = client.post("/webhooks/clickup", json=payload, content_type="application/json")
+    assert resp.status_code == 200
+
+
+# ---- Trace ----
+
+def test_request_trace(client):
+    resp = client.post("/api/intake", json={
+        "channel": "intergalactic_whatsapp",
+        "sender": "Test User",
+        "content": "Need help on Tatooine",
+    })
+    msg_id = resp.get_json()["id"]
+    trace_resp = client.get(f"/api/requests/{msg_id}/trace")
+    data = trace_resp.get_json()
+    assert trace_resp.status_code == 200
+    assert data["id"] == msg_id
+    assert len(data["trace"]) > 0
+    assert any(t["agent"] == "IntakeAgent" for t in data["trace"])
+
+
+def test_request_trace_not_found(client):
+    resp = client.get("/api/requests/nonexistent/trace")
+    assert resp.status_code == 404
+
+
+# ---- Integration Status ----
+
+def test_integration_status(client):
+    resp = client.get("/api/integrations")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    for key in ("gmail", "calendar", "clickup", "whatsapp", "slack"):
+        assert key in data
+        assert isinstance(data[key], bool)
+
+
+# ---- Briefing Inbox ----
+
+def test_briefing_inbox_empty(client):
+    resp = client.get("/api/briefing/inbox")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["total_messages"] == 0
+    assert data["needs_attention"] == []
+    assert data["open_tasks"] == []
+
+
+def test_briefing_inbox_after_demo(client):
+    client.post("/api/demo/load")
+    resp = client.get("/api/briefing/inbox")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["total_messages"] == 16
+    assert data["completed"] >= 10
+    assert data["quarantined"] >= 2
+    assert data["encrypted"] >= 1
+    assert len(data["messages"]) == 16
+    assert isinstance(data["delegation"], dict)
+    assert len(data["delegation"]) > 0

@@ -1,9 +1,9 @@
 const BASE = '/api'
 const TIMEOUT_MS = 15000
 
-async function request(method, path, body, signal) {
+async function request(method, path, body, signal, timeoutMs) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs || TIMEOUT_MS)
 
   const fetchSignal = signal || controller.signal
 
@@ -42,6 +42,9 @@ export const api = {
   trace: (id, signal) => request('GET', `/requests/${id}/trace`, undefined, signal),
   intake: (channel, sender, content, signal) =>
     request('POST', '/intake', { channel, sender, content }, signal),
-  demoLoad: (signal) => request('POST', '/demo/load', undefined, signal),
+  demoLoad: (signal) => request('POST', '/demo/load', undefined, signal, 60000),
   reset: (signal) => request('POST', '/reset', undefined, signal),
+  inbox: (signal) => request('GET', '/briefing/inbox', undefined, signal),
+  integrations: (signal) => request('GET', '/integrations', undefined, signal),
+  generateBriefing: (signal) => request('POST', '/briefings/generate', undefined, signal),
 }

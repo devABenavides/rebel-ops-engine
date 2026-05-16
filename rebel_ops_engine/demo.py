@@ -5,7 +5,7 @@ DEMO_MESSAGES = [
     Message(
         channel=Channel.HOLOGRAM_EMAIL,
         sender="Mon Mothma's Aide",
-        content="I am Senator Mon Mothma's aide. We need a 30-minute briefing with General Leia about funding the next mission.",
+        content="I am Senator Mon Mothma's aide. We need a 30-minute briefing with General Leia about funding the next mission next Tuesday at 10:00.",
         subject="Briefing request — mission funding",
         sender_contact="aide@senate.rebel",
         planet_or_sector="Chandrila",

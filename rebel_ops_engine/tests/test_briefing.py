@@ -1,6 +1,6 @@
 """Direct unit tests for briefing.py."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from agents.calendar import CalendarAgent
@@ -219,5 +219,5 @@ class TestGenerateHologramBriefing:
     def test_date_format(self):
         reporter = ReportingAgent()
         result = generate_hologram_briefing(reporter, CalendarAgent())
-        expected_date = datetime.now().strftime("%Y-%m-%d")
+        expected_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         assert expected_date in result

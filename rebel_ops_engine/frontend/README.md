@@ -50,7 +50,7 @@ Defined in `vite.config.js`. Every request to these paths is forwarded to Flask:
 src/
   main.jsx               — ReactDOM entry point
   App.jsx                — Root layout, sidebar nav, page routing
-  App.css                — All styles (dark theme)
+  App.css                — All styles (light theme)
   api.js                 — API client (BASE = '/api')
   components/
     CommandCenter.jsx    — Dashboard with message list, stats, delegation overview
@@ -59,6 +59,8 @@ src/
     MessageForm.jsx      — Send a message via WhatsApp or Email
     Calendar.jsx         — Public calendar bookings
     Tasks.jsx            — Generated task list
+    MorningBriefing.jsx  — Enhanced morning briefing dashboard with stats, delegation, calendar
+    MorningBriefing.css  — Styles for the morning briefing component
     ErrorBoundary.jsx    — React error boundary wrapper
 ```
 
@@ -78,6 +80,8 @@ const tasks = await api.tasks()
 const calendar = await api.calendar()
 const agents = await api.agents()
 const status  = await api.status()
+const inbox   = await api.inbox()        // Morning Briefing data
+const integrations = await api.integrations()  // Service status
 
 // Write endpoints
 const result = await api.intake("intergalactic_whatsapp", "Han Solo", "Need fuel")

@@ -1,7 +1,9 @@
 import logging
+import threading
 from uuid import uuid4
 
 from agents.base import Agent
+from integrations import clickup_client
 from models import Message, MessageStatus, Task
 
 logger = logging.getLogger(__name__)
@@ -10,6 +12,7 @@ logger = logging.getLogger(__name__)
 class ErrorProtocolAgent(Agent):
     def __init__(self):
         self._error_tasks: list[Task] = []
+        self._clickup_results: dict[str, dict] = {}
 
     @property
     def name(self) -> str:
@@ -34,6 +37,7 @@ class ErrorProtocolAgent(Agent):
                 status="open",
             )
             self._error_tasks.append(task)
+            self._sync_clickup_async(task, message.content)
             message.trace.append({"agent": self.name, "action": "quarantine_logged", "details": {"task_id": task.id}})
 
         elif message.status == MessageStatus.ERROR:
@@ -44,12 +48,13 @@ class ErrorProtocolAgent(Agent):
                 request_id=message.id,
                 owner="Operations Team",
                 assigned_team="Operations",
-                title=f"Automation Error — {message.sender}",
+                title=f"Automation Error - {message.sender}",
                 description=message.error or "Unknown error",
                 priority="medium",
                 status="open",
             )
             self._error_tasks.append(task)
+            self._sync_clickup_async(task, message.content)
             message.trace.append({"agent": self.name, "action": "error_logged", "details": {"task_id": task.id}})
 
         else:
@@ -59,8 +64,34 @@ class ErrorProtocolAgent(Agent):
             message.processed_by.append(self.name)
         return message
 
+    def _sync_clickup_async(self, task: Task, content: str = ""):
+        self._clickup_results[task.id] = {"status": "initiated"}
+        thread = threading.Thread(target=self._sync_clickup, args=(task, content))
+        thread.start()
+
+    def _sync_clickup(self, task: Task, content: str = ""):
+        result = clickup_client.create_task(
+            title=task.title,
+            description=task.description,
+            priority=task.priority,
+            owner=task.owner,
+            team=task.assigned_team,
+            content=content,
+        )
+        self._clickup_results[task.id] = result
+        if result["status"] == "mocked":
+            logger.info("[CLICKUP] Error task %s synced (mock)", task.id)
+        elif result["status"] == "created":
+            logger.info("[CLICKUP] Error task %s created - id=%s", task.id, result.get("id"))
+        else:
+            logger.warning("[CLICKUP] Error task %s failed: %s", task.id, result.get("error"))
+
     def get_error_tasks(self) -> list[Task]:
         return list(self._error_tasks)
 
+    def get_clickup_results(self) -> dict[str, dict]:
+        return dict(self._clickup_results)
+
     def reset(self):
         self._error_tasks.clear()
+        self._clickup_results.clear()

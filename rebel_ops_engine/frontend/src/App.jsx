@@ -6,9 +6,11 @@ import MessageForm from './components/MessageForm.jsx'
 import Calendar from './components/Calendar.jsx'
 import Tasks from './components/Tasks.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import MorningBriefing from './components/MorningBriefing.jsx'
 import { api } from './api.js'
 
 const PAGES = {
+  morning: { label: '\u2615 Morning Briefing', cmp: MorningBriefing },
   command: { label: '\uD83D\uDCCA Command Center', cmp: CommandCenter },
   architecture: { label: '\uD83D\uDD17 Architecture', cmp: WorkflowGraph },
   briefing: { label: '\uD83D\uDCC4 Briefing', cmp: Briefing },
@@ -59,8 +61,9 @@ export default function App() {
   return (
     <div className="app">
       <div className="sidebar">
-        <h1>
-          REBEL OPS
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo.png" alt="" style={{ width: 32, height: 32, background: 'transparent', mixBlendMode: 'multiply' }} />
+          <span>REBEL OPS</span>
           <small>Operations Engine v2.0</small>
         </h1>
         <nav>
@@ -77,7 +80,7 @@ export default function App() {
           <button className="btn btn-outline" style={{ width: '100%' }} onClick={handleReset} disabled={loading}>
             Reset State
           </button>
-          {demoMsg && <div style={{ fontSize: 11, color: '#8892a4', marginTop: 8 }}>{demoMsg}</div>}
+          {demoMsg && <div style={{ fontSize: 11, color: '#6b6b66', marginTop: 8 }}>{demoMsg}</div>}
         </div>
       </div>
       <div className="main">

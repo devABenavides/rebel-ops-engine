@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import socket
@@ -16,6 +17,10 @@ from agents.router import RoutingAgent
 from agents.security_agent import DarkSideSecurityAgent
 from briefing import generate_hologram_briefing
 from demo import DEMO_MESSAGES
+from integrations import clickup_client
+from integrations import gmail_client as gmail
+from integrations import whatsapp_client as wa
+from integrations.config import ensure_env_loaded
 from models import Channel, Message, MessageStatus
 
 logging.basicConfig(
@@ -27,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24).hex()
+ensure_env_loaded()
 
 intake = IntakeAgent()
 security = DarkSideSecurityAgent()
@@ -68,7 +74,8 @@ def run_pipeline(message: Message) -> Message:
             error_handler.process(message)
             break
     if message.status not in (MessageStatus.ERROR, MessageStatus.QUARANTINED,
-                               MessageStatus.SECURITY_REVIEW, MessageStatus.FLAGGED):
+                               MessageStatus.SECURITY_REVIEW, MessageStatus.FLAGGED,
+                               MessageStatus.AWAITING_CONFIRMATION):
         message.status = MessageStatus.COMPLETED
     return message
 
@@ -98,6 +105,7 @@ def _message_to_dict(m: Message) -> dict:
         "assigned_team": m.assigned_team,
         "subject": m.subject,
         "planet_or_sector": m.planet_or_sector,
+        "proposals": m.proposals,
         "trace": m.trace,
     }
 
@@ -241,6 +249,11 @@ def get_request(message_id):
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
     all_tasks = router.get_tasks() + error_handler.get_error_tasks()
+    clickup_results = {}
+    for k, v in router.get_clickup_results().items():
+        clickup_results[k] = v
+    for k, v in error_handler.get_clickup_results().items():
+        clickup_results[k] = v
     return jsonify([
         {
             "id": t.id,
@@ -252,10 +265,10 @@ def list_tasks():
             "priority": t.priority,
             "status": t.status,
             "created_at": t.created_at.isoformat(),
+            "clickup": clickup_results.get(t.id, {"status": "initiated"}),
         }
         for t in all_tasks
     ])
-
 
 @app.route("/api/agents", methods=["GET"])
 def api_agents():
@@ -270,6 +283,9 @@ def api_agents():
 @app.route("/api/demo/load", methods=["POST"])
 @app.route("/demo/seed", methods=["POST"])
 def api_demo_load():
+    router.reset()
+    error_handler.reset()
+    clickup_client.clear_list()
     results = []
     for msg in DEMO_MESSAGES:
         result = run_pipeline(msg)
@@ -343,8 +359,15 @@ def api_briefing():
 
 
 @app.route("/briefings/generate", methods=["POST"])
+@app.route("/api/briefings/generate", methods=["POST"])
 def briefing_generate():
-    return api_briefing()
+    report = generate_hologram_briefing(reporter, calendar)
+    try:
+        from clients import ReportDeliveryClient
+        ReportDeliveryClient().deliver_report(report)
+    except Exception:
+        pass
+    return jsonify({"briefing": report})
 
 
 # ---- Reset ----
@@ -365,6 +388,7 @@ def api_reset():
     router.reset()
     encryption.reset()
     error_handler.reset()
+    clickup_client.clear_list()
     return jsonify({"status": "reset"}), 200
 
 
@@ -384,6 +408,209 @@ def api_calendar():
         }
         for b in bookings
     ])
+
+
+# ---- Webhooks ----
+
+@app.route("/webhooks/whatsapp", methods=["GET"])
+def whatsapp_webhook_verify():
+    mode = request.args.get("hub.mode", "")
+    token = request.args.get("hub.verify_token", "")
+    challenge = request.args.get("hub.challenge", "")
+    body, code = wa.verify_webhook(mode, token, challenge)
+    return body, code
+
+
+@app.route("/webhooks/whatsapp", methods=["POST"])
+def whatsapp_webhook():
+    data = request.get_json(force=True)
+    logger.info("[WEBHOOK] WhatsApp incoming: %s", json.dumps(data, indent=2)[:500])
+    try:
+        entry = data.get("entry", [{}])[0]
+        change = entry.get("changes", [{}])[0]
+        msg = change.get("value", {}).get("messages", [{}])[0]
+        from_number = msg.get("from", "unknown")
+        text = msg.get("text", {}).get("body", "")
+        if text:
+            _handle_intake(Channel.INTERGALACTIC_WHATSAPP, from_number, text)
+    except Exception as e:
+        logger.warning("[WEBHOOK] Failed to parse WhatsApp message: %s", e)
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/webhooks/gmail", methods=["POST"])
+def gmail_webhook():
+    data = request.get_json(force=True)
+    logger.info("[WEBHOOK] Gmail notification: %s", json.dumps(data, indent=2)[:500])
+    try:
+        unread = gmail.list_unread()
+        for msg in unread:
+            content = f"From: {msg['from']}\nSubject: {msg['subject']}\n{msg['snippet']}"
+            result, code = _handle_intake(Channel.HOLOGRAM_EMAIL, msg["from"], content, subject=msg["subject"])
+            if code == 200:
+                gmail.mark_read(msg["id"])
+    except Exception as e:
+        logger.warning("[WEBHOOK] Failed to process Gmail notifications: %s", e)
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/webhooks/clickup", methods=["POST"])
+def clickup_webhook():
+    data = request.get_json(force=True)
+    logger.info("[WEBHOOK] ClickUp event: %s", json.dumps(data, indent=2)[:500])
+    return jsonify({"status": "ok"}), 200
+
+
+# ---- Integration status ----
+
+@app.route("/api/integrations", methods=["GET"])
+def integration_status():
+    return jsonify({
+        "gmail": bool(os.getenv("GMAIL_CREDENTIALS_PATH")),
+        "calendar": bool(os.getenv("GOOGLE_CALENDAR_CREDENTIALS_PATH")),
+        "clickup": bool(os.getenv("CLICKUP_API_TOKEN")),
+        "whatsapp": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
+        "slack": bool(os.getenv("SLACK_WEBHOOK_URL")),
+    })
+
+
+# ---- Morning Briefing data ----
+
+@app.route("/api/briefing/inbox", methods=["GET"])
+def briefing_inbox():
+    msgs = reporter.get_all_messages()
+    all_tasks = router.get_tasks() + error_handler.get_error_tasks()
+    bookings = calendar.get_public_bookings()
+
+    needs_attention = [
+        {
+            "id": m.id, "sender": m.sender,
+            "category": m.category.value if m.category else "unknown",
+            "priority": m.priority,
+            "subject": m.subject or m.content[:80],
+            "timestamp": m.timestamp.isoformat(),
+            "channel": m.channel.value,
+            "status": m.status.value,
+            "encrypted": m.encrypted,
+            "risk_score": m.risk_score,
+        }
+        for m in msgs if m.requires_leia
+    ]
+
+    open_tasks = [
+        {
+            "id": t.id, "title": t.title, "owner": t.owner,
+            "team": t.assigned_team, "priority": t.priority,
+            "status": t.status,
+        }
+        for t in all_tasks if t.status == "open"
+    ]
+
+    completed_count = sum(1 for m in msgs if m.status == MessageStatus.COMPLETED)
+    quarantined_count = sum(1 for m in msgs if m.status == MessageStatus.QUARANTINED)
+    encrypted_count = sum(1 for m in msgs if m.encrypted)
+
+    delegation = {}
+    for m in msgs:
+        owner = m.owner.value if m.owner else "Unassigned"
+        delegation[owner] = delegation.get(owner, 0) + 1
+
+    messages_list = [
+        {
+            "id": m.id, "channel": m.channel.value,
+            "sender": m.sender, "category": m.category.value if m.category else "unknown",
+            "status": m.status.value, "priority": m.priority,
+            "encrypted": m.encrypted, "owner": m.owner.value if m.owner else None,
+            "assigned_team": m.assigned_team,
+            "subject": m.subject or m.content[:80],
+            "content": m.content[:200],
+            "risk_score": m.risk_score,
+            "timestamp": m.timestamp.isoformat(),
+        }
+        for m in sorted(msgs, key=lambda x: x.timestamp, reverse=True)
+    ]
+
+    return jsonify({
+        "total_messages": len(msgs),
+        "completed": completed_count,
+        "quarantined": quarantined_count,
+        "encrypted": encrypted_count,
+        "needs_attention": needs_attention,
+        "open_tasks": open_tasks,
+        "delegation": delegation,
+        "messages": messages_list,
+        "schedule": [
+            {
+                "requestor": b.requestor,
+                "subject": b.subject[:60],
+                "date": b.date,
+                "time": b.time,
+            }
+            for b in bookings
+        ],
+    })
+
+
+# ---- Calendar confirmation ----
+
+@app.route("/api/calendar/confirm/<message_id>/<int:slot>", methods=["GET"])
+def calendar_confirm(message_id, slot):
+    from agents.calendar import _extract_date as _cal_date
+    from clients import CalendarClient as _CalClient
+
+    msg = reporter.get_message(message_id)
+    if msg is None:
+        return "<h1>404</h1><p>Booking not found.</p>", 404
+
+    if not msg.proposals:
+        return "<h1>Already Confirmed</h1><p>This booking has already been confirmed.</p>"
+
+    if slot < 0 or slot >= len(msg.proposals):
+        return "<h1>Invalid Slot</h1><p>Please choose a valid option.</p>", 400
+
+    chosen_time = msg.proposals[slot]
+    date_str = _cal_date(msg.content)
+    summary = msg.summary or msg.content[:100]
+
+    cal = _CalClient()
+    result = cal.create_event(summary, date_str, chosen_time)
+
+    confirmed_slot = msg.proposals[slot]
+    msg.proposals = []
+    msg.status = MessageStatus.COMPLETED
+    msg.trace.append({
+        "agent": "CalendarConfirm",
+        "action": "confirmed",
+        "details": {"date": date_str, "time": confirmed_slot},
+    })
+
+    email_body = (
+        f"Your briefing with General Leia has been confirmed.\n\n"
+        f"Date: {date_str}\n"
+        f"Time: {confirmed_slot}\n"
+        f"Duration: 30 minutes\n\n"
+        f"May the Force be with you."
+    )
+    try:
+        recipient = msg.sender_contact or msg.sender
+        gmail.send_email(recipient, "Rebel Command: Booking Confirmed", email_body)
+    except Exception:
+        pass
+
+    status_text = result.get("status", "error")
+    if status_text == "mocked":
+        status_text = "simulated (mock mode)"
+
+    return f"""
+    <html><body style="font-family:sans-serif;background:#f5f1ea;padding:40px;color:#1c1c1f">
+    <h1>✅ Confirmed</h1>
+    <p>Your 30-minute briefing with <strong>General Leia</strong> has been scheduled.</p>
+    <p><strong>Date:</strong> {date_str}<br>
+    <strong>Time:</strong> {confirmed_slot} (America/Bogota)<br>
+    <strong>Event:</strong> {status_text}</p>
+    <p><a href="http://localhost:5000/" style="color:#d4872a;">Back to Command Center</a></p>
+    </body></html>
+    """
 
 
 if __name__ == "__main__":

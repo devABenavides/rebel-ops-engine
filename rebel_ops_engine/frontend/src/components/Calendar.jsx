@@ -29,7 +29,7 @@ export default function Calendar() {
           <thead><tr><th>Requestor</th><th>Subject</th></tr></thead>
           <tbody>
             {bookings.length === 0 && (
-              <tr><td colSpan={2} style={{ textAlign: 'center', padding: 20, color: '#8892a4' }}>No public bookings</td></tr>
+              <tr><td colSpan={2} style={{ textAlign: 'center', padding: 20, color: '#6b6b66' }}>No public bookings</td></tr>
             )}
             {bookings.map((b) => (
               <tr key={b.message_id}>

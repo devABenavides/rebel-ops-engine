@@ -59,7 +59,7 @@ Use this skill after any of these workflows:
 - `/update-docs`
 - `/evaluate-workflow`
 - `/evaluate-session`
-- `@security-auditor`
+- task (security-auditor subagent)
 
 Use it to answer questions like:
 
@@ -111,11 +111,11 @@ In session-wide mode, evaluate the entire chain of work, including:
 The ideal flow is:
 
 1. `/repo-audit` in read-only mode
-2. Conditional `@security-auditor` only if security-sensitive areas exist
+2. Conditional `task(subagent_type='security-auditor')` only if security-sensitive areas exist
 3. `/test-strategy` in read-only mode, if testing risk needs review
 4. User approves specific findings
 5. `/implement-audit-plan` in build mode
-6. Conditional `@security-auditor` if implementation touches security-sensitive areas
+6. Conditional `task(subagent_type='security-auditor')` if implementation touches security-sensitive areas
 7. Relevant validation commands
 8. `/update-docs` only if documentation changed or needs updating
 9. Final summary

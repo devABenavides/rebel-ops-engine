@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from agents.calendar import CalendarAgent
 from agents.reporter import ReportingAgent
 
 
 def generate_hologram_briefing(reporter: ReportingAgent, calendar: CalendarAgent) -> str:
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     briefing = reporter.generate_daily_briefing(date_str)
 
     lines = []
