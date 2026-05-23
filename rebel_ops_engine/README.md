@@ -66,18 +66,18 @@ The demo uses Star Wars-inspired names and scenarios but no copyrighted logos, m
                        └─────────┬───────────┘
                                  │
                                  ▼
-                       ┌─────────────────────────────┐
-                       │      NotificationAgent       │
-                       │  WhatsApp · Hologram · BB-8  │
-                       │  Quarantine · Ahsoka · Din   │
-                       │  Luke/Ben · Yoda             │
-                       └─────────────┬───────────────┘
-                                     │
-                                     ▼
-                       ┌─────────────────────┐
-                       │    CalendarAgent     │
-                       │(CalendarBooking rec.)│
-                       └─────────┬───────────┘
+                        ┌─────────────────────┐
+                        │    CalendarAgent     │
+                        │(CalendarBooking rec.)│
+                        └─────────┬───────────┘
+                                  │
+                                  ▼
+                        ┌─────────────────────────────┐
+                        │      NotificationAgent       │
+                        │  WhatsApp · Hologram · BB-8  │
+                        │  Quarantine · Ahsoka · Din   │
+                        │  Luke/Ben · Yoda             │
+                        └─────────────┬───────────────┘
                                  │
                                  ▼
                        ┌─────────────────────┐

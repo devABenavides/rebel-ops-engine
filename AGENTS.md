@@ -42,7 +42,7 @@ cd rebel_ops_engine/frontend && npm run dev
 - `demo.py` — 16 spec-aligned demo messages
 - `briefing.py` — Daily Hologram Briefing generator with full category/owner breakdown
 - `.env.example` — Environment variable template for replacing mocked integrations
-- `tests/test_engine.py` — 51 integration tests
+- `tests/test_engine.py` — 52 integration tests
 - `tests/test_agents.py` — 70 isolated unit tests
 - `tests/test_security.py` — 54 pure unit tests for security functions
 - `tests/test_briefing.py` — 15 unit tests for briefings
@@ -51,7 +51,7 @@ cd rebel_ops_engine/frontend && npm run dev
 - `pyproject.toml` — Ruff linter config
 
 ## Agent pipeline order
-IntakeAgent → DarkSideSecurityAgent → C3POClassifierAgent → RoutingAgent → YodaEncryptionAgent → NotificationAgent → CalendarAgent → ReportingAgent → ErrorProtocolAgent
+IntakeAgent → DarkSideSecurityAgent → C3POClassifierAgent → RoutingAgent → YodaEncryptionAgent → CalendarAgent → NotificationAgent → ReportingAgent → ErrorProtocolAgent
 
 Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the registry to include them in the pipeline.
 
