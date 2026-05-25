@@ -3,13 +3,17 @@ import logging
 import os
 from email.message import EmailMessage
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-
 from integrations.config import get
+
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+except ImportError:
+    Request = Credentials = InstalledAppFlow = build = HttpError = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +26,9 @@ GMAIL_TOKEN_PATH = "credentials/gmail_token.json"
 def _get_service():
     import os as _os
     if _os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("REBEL_SKIP_OAUTH"):
+        return None
+    if Request is None:
+        logger.warning("Google API packages not installed — Gmail client unavailable")
         return None
     creds = None
     token_path = os.path.join(os.path.dirname(__file__), "..", GMAIL_TOKEN_PATH)
@@ -73,7 +80,7 @@ def send_email(to: str, subject: str, body: str, html: str = "") -> dict:
         result = service.users().messages().send(userId="me", body={"raw": encoded}).execute()
         logger.info("[GMAIL] Sent to %s — id=%s", to, result.get("id"))
         return {"status": "sent", "channel": "gmail", "to": to, "id": result.get("id")}
-    except HttpError as e:
+    except Exception as e:
         logger.error("[GMAIL] Failed to send: %s", e)
         return {"status": "error", "error": str(e)}
 
@@ -99,7 +106,7 @@ def list_unread() -> list[dict]:
                 "thread_id": detail.get("threadId", ""),
             })
         return parsed
-    except HttpError as e:
+    except Exception as e:
         logger.error("[GMAIL] Failed to list unread: %s", e)
         return []
 
@@ -111,6 +118,6 @@ def mark_read(message_id: str) -> bool:
     try:
         service.users().messages().modify(userId="me", id=message_id, body={"removeLabelIds": ["UNREAD"]}).execute()
         return True
-    except HttpError as e:
+    except Exception as e:
         logger.error("[GMAIL] Failed to mark read %s: %s", message_id, e)
         return False

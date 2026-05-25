@@ -2,13 +2,17 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-
 from integrations.config import get
+
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+except ImportError:
+    Request = Credentials = InstalledAppFlow = build = HttpError = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,9 @@ CALENDAR_TOKEN_PATH = "credentials/calendar_token.json"
 def _get_service():
     import os as _os
     if _os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("REBEL_SKIP_OAUTH"):
+        return None
+    if Request is None:
+        logger.warning("Google API packages not installed — Calendar client unavailable")
         return None
     creds = None
     token_path = os.path.join(os.path.dirname(__file__), "..", CALENDAR_TOKEN_PATH)
@@ -88,7 +95,7 @@ def check_availability(date_str: str = None) -> list[dict]:
                 "id": e.get("id"),
             })
         return slots
-    except HttpError as e:
+    except Exception as e:
         logger.error("[CALENDAR] Failed to check availability: %s", e)
         return []
 
@@ -116,7 +123,7 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
             singleEvents=True,
             orderBy="startTime",
         ).execute()
-    except HttpError as e:
+    except Exception as e:
         logger.error("[CALENDAR] Failed to list events: %s", e)
         return []
 
@@ -192,6 +199,6 @@ def create_event(summary: str, date: str, time: str, attendees: list[str] = None
         result = service.events().insert(calendarId=calendar_id, body=event).execute()
         logger.info("[CALENDAR] Created event: %s — id=%s", summary, result.get("id"))
         return {"status": "created", "summary": summary, "date": date, "time": time, "id": result.get("id")}
-    except HttpError as e:
+    except Exception as e:
         logger.error("[CALENDAR] Failed to create event: %s", e)
         return {"status": "error", "error": str(e)}
