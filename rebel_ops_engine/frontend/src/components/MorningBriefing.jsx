@@ -17,6 +17,7 @@ function getInitialBg(name) {
 export default function MorningBriefing() {
   const [data, setData] = useState(null)
   const [messages, setMessages] = useState([])
+  const [integrations, setIntegrations] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const toastBoxRef = useRef(null)
@@ -31,6 +32,7 @@ export default function MorningBriefing() {
       setLoading(false)
     })
     api.messages().then((data) => setMessages(data.data || data)).catch(() => {})
+    api.integrations().then(setIntegrations).catch(() => {})
   }
 
   useEffect(() => {
@@ -226,22 +228,16 @@ export default function MorningBriefing() {
 
           <div className="side-card">
             <h4>Connected sources</h4>
-            <div className="source-row">
-              <span><span className="status-dot" style={{background:'#8e8e88'}}></span>Gmail</span>
-              <span className="off">mock</span>
-            </div>
-            <div className="source-row">
-              <span><span className="status-dot" style={{background:'#8e8e88'}}></span>Calendar</span>
-              <span className="off">mock</span>
-            </div>
-            <div className="source-row">
-              <span><span className="status-dot" style={{background:'#8e8e88'}}></span>ClickUp</span>
-              <span className="off">mock</span>
-            </div>
-            <div className="source-row">
-              <span><span className="status-dot" style={{background:'#8e8e88'}}></span>WhatsApp</span>
-              <span className="off">mock</span>
-            </div>
+            {integrations ? (
+              [["gmail","Gmail"],["calendar","Calendar"],["clickup","ClickUp"],["whatsapp","WhatsApp"],["slack","Slack"]].map(([key, label]) => (
+                <div key={key} className="source-row">
+                  <span><span className="status-dot" style={{background: integrations[key] ? '#10b981' : '#8e8e88'}}></span>{label}</span>
+                  <span className={integrations[key] ? 'live' : 'off'}>{integrations[key] ? 'live' : 'mock'}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{fontSize:12,color:'var(--muted)',padding:'6px 0'}}>Loading...</div>
+            )}
           </div>
         </aside>
       </div>

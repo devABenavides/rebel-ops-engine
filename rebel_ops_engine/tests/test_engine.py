@@ -579,9 +579,13 @@ def test_request_trace_not_found(client):
 
 # ---- Integration Status (removed — was gated for security) ----
 
-def test_integration_status_removed(client):
+def test_integration_status(client):
     resp = client.get("/api/integrations")
-    assert resp.status_code == 404
+    data = resp.get_json()
+    assert resp.status_code == 200
+    for key in ("gmail", "calendar", "clickup", "whatsapp", "slack"):
+        assert key in data
+        assert isinstance(data[key], bool)
 
 
 # ---- Briefing Inbox ----

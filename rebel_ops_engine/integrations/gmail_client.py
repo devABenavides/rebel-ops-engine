@@ -46,9 +46,9 @@ def _get_service():
                 return None
             try:
                 flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
-                creds = flow.run_local_server(port=0, timeout_seconds=30)
-            except Exception as e:
-                logger.warning("Gmail OAuth flow failed: %s", e)
+                creds = flow.run_local_server(port=0, timeout_seconds=60)
+            except Exception:
+                logger.warning("Gmail OAuth browser flow failed. Run:  python scripts/setup_oauth.py gmail")
                 return None
         os.makedirs(os.path.dirname(token_path), exist_ok=True)
         with open(token_path, "w") as f:

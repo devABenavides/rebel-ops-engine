@@ -177,6 +177,19 @@ def health():
     return jsonify({"status": "healthy", "service": "Rebel Operations Engine"})
 
 
+# ---- Integration status ----
+
+@app.route("/api/integrations", methods=["GET"])
+def integration_status():
+    return jsonify({
+        "gmail": bool(os.getenv("GMAIL_CREDENTIALS_PATH")),
+        "calendar": bool(os.getenv("GOOGLE_CALENDAR_CREDENTIALS_PATH")),
+        "clickup": bool(os.getenv("CLICKUP_API_TOKEN")),
+        "whatsapp": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
+        "slack": bool(os.getenv("SLACK_WEBHOOK_URL")),
+    })
+
+
 # ---- Legacy endpoints (backward compatible) ----
 
 @app.route("/", methods=["GET"])
