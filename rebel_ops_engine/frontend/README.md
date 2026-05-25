@@ -56,11 +56,13 @@ src/
     CommandCenter.jsx    — Dashboard with message list, stats, delegation overview
     WorkflowGraph.jsx    — Interactive SVG pipeline architecture diagram
     Briefing.jsx         — Daily Hologram Briefing display
+    Owners.jsx           — Team Directory (19-character owner reference)
     MessageForm.jsx      — Send a message via WhatsApp or Email
     Calendar.jsx         — Public calendar bookings
     Tasks.jsx            — Generated task list
     MorningBriefing.jsx  — Enhanced morning briefing dashboard with stats, delegation, calendar
     MorningBriefing.css  — Styles for the morning briefing component
+    Architecture.css     — Styles for the WorkflowGraph component
     ErrorBoundary.jsx    — React error boundary wrapper
 ```
 

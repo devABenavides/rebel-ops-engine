@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
+import './Architecture.css'
 
-const PIPELINE = [
+const NODES = [
   {
     id: 'intake', label: 'Request Intake',
     icon: '\uD83D\uDCE5',
     subtitle: 'WhatsApp \u2022 Hologram Email',
-    color: '#4fc3f7',
     detail: 'All incoming requests arrive through Intergalactic WhatsApp or Hologram Email. The IntakeAgent validates sender, content length, and assigns a unique ID.',
     outputs: [{ to: 'security', label: 'all messages' }],
   },
@@ -13,7 +13,6 @@ const PIPELINE = [
     id: 'security', label: 'Security Scan',
     icon: '\uD83D\uDEE1\uFE0F',
     subtitle: 'DarkSideSecurityAgent',
-    color: '#f44336',
     detail: 'Scans every message for Dark Side threats: Emperor Palpatine, Darth Vader, Sith, infiltration, secret Rebel base requests, Leia private schedule requests. High-risk is quarantined.',
     outputs: [
       { to: 'classifier', label: 'Safe (risk < 50)' },
@@ -24,7 +23,6 @@ const PIPELINE = [
     id: 'quarantine', label: 'Quarantine',
     icon: '\uD83D\uDD12',
     subtitle: 'Threat Blocked',
-    color: '#ef5350',
     detail: 'The message is blocked immediately. No information is shared. Security Team is notified. An investigation task is created via ErrorProtocolAgent.',
     terminal: true,
   },
@@ -32,7 +30,6 @@ const PIPELINE = [
     id: 'classifier', label: 'AI Classifier',
     icon: '\uD83E\uDD16',
     subtitle: 'C-3PO Categorizes',
-    color: '#2196f3',
     detail: 'C-3PO classifies into 15 categories: calendar_booking, planet_help, recruitment, logistics, urgent_security, jedi_training_diplomacy, ahsoka_special_mission, yoda_encrypted_strategy, and more. Sets priority, Jedi case type, and flags if Leia is needed.',
     outputs: [{ to: 'router', label: 'category assigned' }],
   },
@@ -40,7 +37,6 @@ const PIPELINE = [
     id: 'router', label: 'Routing Engine',
     icon: '\uD83D\uDD01',
     subtitle: 'Assigns Owner + Team',
-    color: '#ff9800',
     detail: 'Each category routes to the correct owner. A Task record is created. Special cases: Force-sensitive children go to Grogu Care Team. Yoda strategy goes to encrypted channel.',
     outputs: [
       { to: 'leia', label: 'Calendar Booking' },
@@ -57,29 +53,24 @@ const PIPELINE = [
     id: 'leia', label: 'General Leia',
     icon: '\uD83D\uDC69\u200D\u2708\uFE0F',
     subtitle: 'Executive Office',
-    color: '#e91e63',
     detail: 'Calendar bookings and items requiring Leia go here. Leia only sees high-value decisions, VIP meetings, and final escalations.',
-    outputs: [{ to: 'calendar', label: 'booking request' }, { to: 'briefing', label: 'daily report' }],
   },
   {
     id: 'defense', label: 'Rebel Defense Team',
     icon: '\uD83C\uDF96\uFE0F',
     subtitle: 'Planet Help & Defense',
-    color: '#81c784',
     detail: 'Handles planetary aid requests, crisis response, and defense coordination. Creates a task and dispatches support.',
   },
   {
     id: 'solo', label: 'Han Solo',
     icon: '\uD83D\uDE80',
     subtitle: 'Logistics Team',
-    color: '#64b5f6',
     detail: 'Handles supply delivery, transport, fuel credits, and cargo routing. Creates a logistics task.',
   },
   {
     id: 'yoda', label: 'Master Yoda',
     icon: '\uD83E\uDDD9',
     subtitle: 'Jedi Council',
-    color: '#baa182',
     detail: 'Only receives encrypted strategic transmissions. Messages are encrypted via YodaEncryptionAgent and stored as EncryptedTransmission records.',
     outputs: [{ to: 'encrypt', label: 'encrypt & store' }],
   },
@@ -87,7 +78,6 @@ const PIPELINE = [
     id: 'encrypt', label: 'Encryption',
     icon: '\uD83D\uDD10',
     subtitle: 'YodaEncryptionAgent',
-    color: '#ffd54f',
     detail: 'The message content is encrypted (demo: reverse-string cipher). An EncryptedTransmission record is created with ciphertext and method metadata.',
     terminal: true,
   },
@@ -95,28 +85,24 @@ const PIPELINE = [
     id: 'ahsoka', label: 'Ahsoka Tano',
     icon: '\uD83D\uDD75\uFE0F',
     subtitle: 'Special Mission Review',
-    color: '#f06292',
     detail: 'Complex situations needing judgment before escalation. Ahsoka assesses whether the contact is an ally, monitored contact, or risk.',
   },
   {
     id: 'djarin', label: 'Din Djarin',
     icon: '\uD83D\uDEE1\uFE0F',
     subtitle: 'Protection Team',
-    color: '#ff8a65',
     detail: 'Protection missions, informant extraction, confidential transport. Marked restricted. Security level set to high.',
   },
   {
     id: 'r2', label: 'R2-D2',
-    icon: '\uD83E\uDD16',
+    icon: '\uD83E\uDDF0',
     subtitle: 'Operations Analytics',
-    color: '#a1887f',
     detail: 'Data support requests: status reports, data lookups, coordinate retrieval, and analysis summaries.',
   },
   {
     id: 'organizations', label: 'Other Teams',
     icon: '\uD83D\uDC65',
     subtitle: '6 more owners available',
-    color: '#90a4ae',
     detail: 'Recruitment -> Rebel Recruitment Team. Soldier Support -> Operations. Training -> Luke+Ben. Partnerships -> Partnerships Team. Urgent Security -> Security Team (BB-8 alert). Field Operations -> Chewbacca.',
     outputs: [{ to: 'briefing', label: 'all reports' }],
   },
@@ -124,7 +110,6 @@ const PIPELINE = [
     id: 'calendar', label: 'Calendar',
     icon: '\uD83D\uDCC5',
     subtitle: 'Availability Check',
-    color: '#00bcd4',
     detail: 'Checks availability and suggests time slots. Private Leia events are stored internally but never exposed via the public API.',
     outputs: [{ to: 'briefing', label: 'bookings' }],
   },
@@ -132,177 +117,258 @@ const PIPELINE = [
     id: 'briefing', label: 'Daily Briefing',
     icon: '\uD83D\uDCCA',
     subtitle: 'ReportingAgent',
-    color: '#607d8b',
     detail: 'Generates the Daily Hologram Briefing for General Leia. Includes: total requests, category breakdown, owner breakdown, critical items, security risks, blocked items, decisions needed, and recommended focus.',
     terminal: true,
   },
 ]
 
-const NODE_WIDTH = 180
-const NODE_HEIGHT = 70
+const PHASES = [
+  {
+    id: 'ingestion',
+    icon: '\uD83D\uDCE5',
+    label: 'Ingestion',
+    subtitle: 'Request Intake',
+    desc: 'Messages enter the pipeline via Intergalactic WhatsApp or Hologram Email. Each request gets a unique ID and is validated.',
+    nodes: ['intake'],
+  },
+  {
+    id: 'security',
+    icon: '\uD83D\uDEE1\uFE0F',
+    label: 'Security Scan',
+    subtitle: 'Dark Side Detection',
+    desc: 'Every message is scanned for Dark Side threats. Safe messages proceed to classification; threats are quarantined immediately.',
+    nodes: ['security', 'quarantine'],
+  },
+  {
+    id: 'classify',
+    icon: '\uD83E\uDD16',
+    label: 'Classification',
+    subtitle: 'C-3PO AI Classification',
+    desc: 'C-3PO classifies each request into one of 15 categories, sets priority, and flags items needing General Leia.',
+    nodes: ['classifier'],
+  },
+  {
+    id: 'routing',
+    icon: '\uD83D\uDD01',
+    label: 'Routing Engine',
+    subtitle: 'Owner & Team Assignment',
+    desc: 'Each category is routed to the correct owner or team. A Task record is created for every routed request.',
+    nodes: ['router'],
+    showOwners: true,
+  },
+  {
+    id: 'delivery',
+    icon: '\uD83D\uDCE8',
+    label: 'Delivery',
+    subtitle: 'Final Processing & Reporting',
+    desc: 'Results are delivered through calendar bookings, encrypted storage, or the daily briefing for General Leia.',
+    nodes: ['calendar', 'encrypt', 'briefing'],
+  },
+]
+
+const OWNER_MAP = [
+  { id: 'leia', name: 'General Leia', icon: '\uD83D\uDC69\u200D\u2708\uFE0F', category: 'calendar_booking' },
+  { id: 'defense', name: 'Rebel Defense Team', icon: '\uD83C\uDF96\uFE0F', category: 'planet_help' },
+  { id: 'solo', name: 'Han Solo', icon: '\uD83D\uDE80', category: 'logistics' },
+  { id: 'yoda', name: 'Master Yoda', icon: '\uD83E\uDDD9', category: 'yoda_encrypted_strategy' },
+  { id: 'ahsoka', name: 'Ahsoka Tano', icon: '\uD83D\uDD75\uFE0F', category: 'ahsoka_special_mission' },
+  { id: 'djarin', name: 'Din Djarin', icon: '\uD83D\uDEE1\uFE0F', category: 'special_protection' },
+  { id: 'r2', name: 'R2-D2', icon: '\uD83E\uDDF0', category: 'data_support' },
+  { id: 'organizations', name: 'Other Teams', icon: '\uD83D\uDC65', category: 'other' },
+]
+
+const NODE_ICONS = {
+  leia: '/icons/Leia.png',
+  solo: '/icons/Han Solo.png',
+  yoda: '/icons/Yoda.png',
+  djarin: '/icons/Din Djarin.png',
+  r2: '/icons/R2D2.png',
+  quarantine: '/icons/Quarentene.png',
+  classifier: '/icons/C3PO.png',
+}
+
+const OWNER_ICONS = {
+  leia: '/icons/Leia.png',
+  solo: '/icons/Han Solo.png',
+  yoda: '/icons/Yoda.png',
+  djarin: '/icons/Din Djarin.png',
+  r2: '/icons/R2D2.png',
+}
+
+function catLabel(cat) {
+  return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 export default function WorkflowGraph() {
-  const [selected, setSelected] = useState(null)
-  const [hoveredEdge, setHoveredEdge] = useState(null)
+  const [expanded, setExpanded] = useState({ ingestion: true })
+  const [selectedNode, setSelectedNode] = useState(null)
 
-  const getRow = (id) => {
-    const positions = {
-      intake: 0, security: 1, quarantine: 2, classifier: 2, router: 3,
-      leia: 4, defense: 4, solo: 4, yoda: 4, ahsoka: 4, djarin: 4, r2: 4, organizations: 4,
-      encrypt: 5, calendar: 5, briefing: 6,
-    }
-    return positions[id] || 0
+  const togglePhase = (id) => {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const getCol = (id, row) => {
-    const cols = {
-      intake: { 0: 5 },
-      security: { 1: 5 },
-      quarantine: { 2: 8 },
-      classifier: { 2: 2 },
-      router: { 3: 5 },
-      leia: { 4: 0 }, defense: { 4: 2 }, solo: { 4: 4 }, yoda: { 4: 6 }, ahsoka: { 4: 7 }, djarin: { 4: 8 }, r2: { 4: 9 }, organizations: { 4: 10 },
-      encrypt: { 5: 6 }, calendar: { 5: 0 },
-      briefing: { 6: 5 },
-    }
-    return (cols[id] && cols[id][row]) || 0
+  const handleNodeClick = (nodeId) => {
+    setSelectedNode((prev) => (prev === nodeId ? null : nodeId))
   }
 
-  const COL_GAP = 200
-  const ROW_GAP = 100
+  const getNode = (id) => NODES.find((n) => n.id === id)
 
-  const nodePos = {}
-  PIPELINE.forEach((n) => {
-    const row = getRow(n.id)
-    const col = getCol(n.id, row)
-    nodePos[n.id] = { row, col, x: col * COL_GAP + 40, y: row * ROW_GAP + 30 }
-  })
-
-  const svgWidth = 11 * COL_GAP + 80
-  const svgHeight = 7 * ROW_GAP + 60
-
-  const renderEdges = () => {
-    const edges = []
-    PIPELINE.forEach((n) => {
-      if (!n.outputs) return
-      n.outputs.forEach((out) => {
-        const from = nodePos[n.id]
-        const to = nodePos[out.to]
-        if (!from || !to) return
-        const x1 = from.x + NODE_WIDTH
-        const y1 = from.y + NODE_HEIGHT / 2
-        const x2 = to.x
-        const y2 = to.y + NODE_HEIGHT / 2
-        const midX = (x1 + x2) / 2
-        const isHighlighted = hoveredEdge === `${n.id}->${out.to}`
-        edges.push(
-          <g key={`${n.id}->${out.to}`}>
-            <path
-              d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`}
-              fill="none"
-              stroke={isHighlighted ? '#4fc3f7' : '#2a3346'}
-              strokeWidth={isHighlighted ? 2.5 : 1.5}
-              strokeDasharray={n.id === 'yoda' ? '6,3' : 'none'}
-              onMouseEnter={() => setHoveredEdge(`${n.id}->${out.to}`)}
-              onMouseLeave={() => setHoveredEdge(null)}
-              style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-            />
-            <rect
-              x={midX - 55} y={y1 - 28} width={110} height={18} rx={4}
-              fill={isHighlighted ? '#1a2740' : '#141a24'}
-              stroke={isHighlighted ? '#4fc3f7' : '#2a3346'}
-              strokeWidth={1}
-              onMouseEnter={() => setHoveredEdge(`${n.id}->${out.to}`)}
-              onMouseLeave={() => setHoveredEdge(null)}
-              style={{ cursor: 'pointer' }}
-            />
-            <text
-              x={midX} y={y1 - 16}
-              textAnchor="middle"
-              fill={isHighlighted ? '#4fc3f7' : '#8892a4'}
-              fontSize={10}
-              onMouseEnter={() => setHoveredEdge(`${n.id}->${out.to}`)}
-              onMouseLeave={() => setHoveredEdge(null)}
-              style={{ cursor: 'pointer' }}
-            >
-              {out.label}
-            </text>
-          </g>
-        )
-      })
-    })
-    return edges
-  }
-
-  return (
-    <div>
-      <h2 style={{ marginBottom: 4 }}>System Architecture</h2>
-      <p style={{ color: '#6b6b66', fontSize: 13, marginBottom: 16 }}>
-        Click any node to learn how each component works. This is the full engine powering the Rebellion.
-      </p>
-
-      <div style={{
-        overflowX: 'auto', overflowY: 'hidden',
-        background: '#efe9dd', border: '1px solid #2a3346', borderRadius: 8,
-        padding: '10px 0',
-      }}>
-        <svg width={svgWidth} height={svgHeight} style={{ display: 'block', minWidth: svgWidth }}>
-          {renderEdges()}
-          {PIPELINE.map((n) => {
-            const pos = nodePos[n.id]
-            const isSelected = selected?.id === n.id
-            return (
-              <g
-                key={n.id}
-                onClick={() => setSelected(isSelected ? null : n)}
-                style={{ cursor: 'pointer' }}
-              >
-                <rect
-                  x={pos.x} y={pos.y} width={NODE_WIDTH} height={NODE_HEIGHT} rx={8}
-                  fill={isSelected ? '#1a2740' : '#141a24'}
-                  stroke={isSelected ? '#4fc3f7' : n.terminal ? '#ef5350' : n.color}
-                  strokeWidth={isSelected ? 2 : 1}
-                />
-                <text x={pos.x + 14} y={pos.y + 24} fontSize={16}>{n.icon}</text>
-                <text x={pos.x + 40} y={pos.y + 24} fill="#e0e0e0" fontSize={13} fontWeight={600}>
-                  {n.label.length > 18 ? n.label.slice(0, 17) + '...' : n.label}
-                </text>
-                <text x={pos.x + 40} y={pos.y + 42} fill="#8892a4" fontSize={10}>
-                  {n.subtitle.length > 28 ? n.subtitle.slice(0, 27) + '...' : n.subtitle}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      </div>
-
-      {selected && (
-        <div className="card" style={{ marginTop: 16, border: `1px solid ${selected.color}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 24 }}>{selected.icon}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: '#1c1c1f' }}>{selected.label}</div>
-              <div style={{ fontSize: 12, color: '#6b6b66' }}>{selected.subtitle}</div>
-            </div>
+  const renderNodeCard = (id) => {
+    const node = getNode(id)
+    if (!node) return null
+    const sel = selectedNode === id
+    return (
+      <div
+        key={id}
+        className={`arch-node ${sel ? 'selected' : ''} ${node.terminal ? 'terminal' : ''}`}
+        onClick={() => handleNodeClick(id)}
+      >
+        <div className="arch-node-main">
+          <span className="arch-node-icon">
+            {NODE_ICONS[node.id]
+              ? <img src={NODE_ICONS[node.id]} alt={node.label} className="icon-img-sm" />
+              : node.icon}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="arch-node-label">{node.label}</div>
+            <div className="arch-node-sub">{node.subtitle}</div>
           </div>
-          <p style={{ fontSize: 13, color: '#3b3b3f', lineHeight: 1.6 }}>{selected.detail}</p>
-          {selected.outputs && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#6b6b66' }}>
-              <strong>Outputs:</strong>{' '}
-              {selected.outputs.map((o, i) => (
-                <span key={i} style={{ color: '#4fc3f7' }}>
-                  {i > 0 ? ', ' : ''}{o.label} {'\u2192'} {o.to}
-                </span>
-              ))}
+          {node.terminal && <span className="arch-terminal-badge">ENDPOINT</span>}
+        </div>
+        {node.outputs && !sel && (
+          <div className="arch-node-outputs">
+            {node.outputs.map((o, i) => (
+              <span key={i} className="arch-output-tag">{'\u2192'} {o.label}</span>
+            ))}
+          </div>
+        )}
+        {sel && (
+          <div className="arch-node-detail">
+            <p>{node.detail}</p>
+            {node.outputs && (
+              <div className="arch-detail-outputs">
+                {node.outputs.map((o, i) => (
+                  <span key={i} className="arch-detail-output">
+                    {'\u2192'} {o.label} <span className="arch-dest">{o.to}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderPhase = (phase, idx) => {
+    const isOpen = expanded[phase.id]
+
+    let body = null
+    if (isOpen) {
+      body = (
+        <div className="arch-phase-body">
+          <div className="arch-phase-desc">{phase.desc}</div>
+
+          <div className="arch-nodes">
+            {phase.nodes.map(renderNodeCard)}
+          </div>
+
+          {phase.id === 'security' && (
+            <div className="arch-branch">
+              <div className="arch-branch-path safe">
+                <div>
+                  <span className="branch-icon">{'\u2705'}</span>
+                  <span className="branch-label">Safe — Risk &lt; 50</span>
+                </div>
+                <span className="branch-dest">{'\u2192'} Proceeds to Classification (Phase 3)</span>
+              </div>
+              <div className="arch-branch-path threat">
+                <div>
+                  <span className="branch-icon">{'\u26D4'}</span>
+                  <span className="branch-label">Threat — Risk &ge; 50</span>
+                </div>
+                <span className="branch-dest">{'\u2192'} Blocked · Quarantine (endpoint)</span>
+              </div>
             </div>
           )}
-          {selected.terminal && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#ef5350' }}>
-              {'Endpoint \u2014 no further routing'}
+
+          {phase.showOwners && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+                {'\uD83D\uDCCD'} Routing destinations
+              </div>
+              <div className="arch-owner-grid">
+                {OWNER_MAP.map((o) => {
+                  const isOwnerSelected = selectedNode === o.id
+                  return (
+                    <div
+                      key={o.id}
+                      className={`arch-owner-item ${isOwnerSelected ? 'selected' : ''}`}
+                      onClick={() => handleNodeClick(o.id)}
+                    >
+                      <span className="oi-icon">
+                        {OWNER_ICONS[o.id]
+                          ? <img src={OWNER_ICONS[o.id]} alt={o.name} className="icon-img-sm" />
+                          : o.icon}
+                      </span>
+                      <div>
+                        <div className="oi-name">{o.name}</div>
+                        <span className="oi-cat">{catLabel(o.category)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {OWNER_MAP.some((o) => selectedNode === o.id) && (
+                <div className="arch-owner-detail">
+                  {(() => {
+                    const owner = OWNER_MAP.find((o) => o.id === selectedNode)
+                    const node = getNode(owner.id)
+                    return <p>{node ? node.detail : ''}</p>
+                  })()}
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      )
+    }
+
+    return (
+      <div key={phase.id} className="arch-phase" style={phase.id === 'security' ? { borderLeft: '3px solid var(--sith)' } : phase.id === 'routing' ? { borderLeft: '3px solid var(--rebel)' } : {}}>
+        <div className="arch-phase-header" onClick={() => togglePhase(phase.id)}>
+          <span className="ph-icon">{phase.icon}</span>
+          <div className="ph-info">
+            <div className="ph-label">{phase.label}</div>
+            <div className="ph-subtitle">{phase.subtitle}</div>
+          </div>
+          <span className={`ph-toggle ${isOpen ? 'open' : ''}`}>{'\u25BC'}</span>
+        </div>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <div className="arch-container">
+      <div className="arch-header">
+        <h2>System Architecture</h2>
+        <p>
+          Click any component to learn how the Rebellion&apos;s message processing pipeline works.
+          The pipeline has {PHASES.length} phases and {NODES.length} components.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {PHASES.map((phase, idx) => (
+          <div key={phase.id}>
+            {renderPhase(phase, idx)}
+            {idx < PHASES.length - 1 && (
+              <div className="arch-flow-arrow">{'\u2193'}</div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

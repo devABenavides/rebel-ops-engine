@@ -15,3 +15,5 @@ node_modules/
 frontend/dist/
 credentials/*_oauth.json
 credentials/*_token.json
+rebel_ops_engine/credentials/*_oauth.json
+rebel_ops_engine/credentials/*_token.json

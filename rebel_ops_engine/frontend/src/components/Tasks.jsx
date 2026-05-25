@@ -9,7 +9,7 @@ export default function Tasks() {
   useEffect(() => {
     let cancelled = false
     api.tasks()
-      .then((data) => { if (!cancelled) setTasks(data) })
+      .then((data) => { if (!cancelled) setTasks(data.data || data) })
       .catch((err) => { if (!cancelled) setError(err.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -21,7 +21,7 @@ export default function Tasks() {
   return (
     <div>
       <h2>Generated Tasks</h2>
-      <p style={{ color: '#6b6b66', marginBottom: 16, fontSize: 13 }}>
+      <p style={{ color: 'var(--muted)', marginBottom: 16, fontSize: 13 }}>
         Every routed request creates a task. Security and error events also generate tasks.
       </p>
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
@@ -37,7 +37,7 @@ export default function Tasks() {
           </thead>
           <tbody>
             {tasks.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#6b6b66' }}>No tasks yet. Load demo messages first.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20, color: 'var(--muted)' }}>No tasks yet. Load demo messages first.</td></tr>
             )}
             {tasks.map((t) => (
               <tr key={t.id}>

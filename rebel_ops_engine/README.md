@@ -153,13 +153,13 @@ curl http://localhost:5000/health
 curl -X POST http://localhost:5000/api/demo/load
 
 # 3. Run all demo messages + get routing summary
-curl -X POST http://localhost:5000/demo/run-all
+curl -X POST http://localhost:5000/api/demo/run-all
 
 # 4. View all processed requests
 curl http://localhost:5000/api/messages
 
 # 5. View generated tasks
-curl http://localhost:5000/tasks
+curl http://localhost:5000/api/tasks
 
 # 6. Generate the daily Hologram Briefing
 curl http://localhost:5000/api/briefing
@@ -218,13 +218,16 @@ ruff check .
 | POST | `/api/demo/load` | Load 16 demo messages |
 | POST | `/demo/seed` | Alias for demo load |
 | POST | `/demo/run-all` | Load + reset + routing summary |
+| POST | `/api/demo/run-all` | Alias for `/demo/run-all` |
 | GET | `/api/briefing` | Daily Hologram Briefing |
 | GET | `/briefings/daily` | Alias for briefing |
 | POST | `/briefings/generate` | Generate briefing explicitly |
+| POST | `/api/briefings/generate` | Alias for generate briefing |
 | GET | `/api/briefing/inbox` | Morning Briefing inbox data (messages, tasks, delegation, schedule) |
-| GET | `/api/integrations` | Integration status (which services are configured) |
+| GET | `/api/tasks` | List all generated tasks |
+| GET | `/api/calendar/confirm/<id>/<slot>` | Calendar confirmation with slot selection |
 | GET | `/api/requests/<id>/trace` | Get pipeline trace for a request |
-| POST | `/api/reset` | Reset all in-memory state |
+| POST | `/api/reset` | Reset all state |
 | GET | `/api/calendar` | Public calendar bookings |
 | GET | `/webhooks/whatsapp` | WhatsApp webhook verification |
 | POST | `/webhooks/whatsapp` | WhatsApp webhook incoming message |
@@ -246,7 +249,7 @@ ruff check .
 | 7 | Outpost Scout | urgent_security | Security Team | BB-8 alert |
 | 8 | Medical Corps | logistics | Han Solo | Supply delivery |
 | 9 | Wookiee Chieftain | field_operations | Chewbacca | Field support |
-| 10 | Village Elder | jedi_training_diplomacy | Grogu Care Team | Force-sensitive child |
+| 10 | Village Elder | jedi_training_diplomacy | Grogu Care Team | Force-sensitive child → escalates to Leia |
 | 11 | Rebel Intelligence | special_protection | Din Djarin | Extraction |
 | 12 | Jar Jar Binks | planet_help | Rebel Defense Team | Planetary aid |
 | 13 | Emperor Palpatine | quarantined | — | HIGH RISK |
@@ -269,6 +272,7 @@ ruff check .
 | `investor_partner` | Partnerships Team | Partnerships |
 | `urgent_security` | Security Team | Security Team |
 | `jedi_training_diplomacy` | Luke Skywalker + Ben Kenobi | Jedi Training & Diplomacy Team |
+| `grogu_care` *(detected under `jedi_training_diplomacy`)* | Grogu Care Team → General Leia | Escalates to Leia (`requires_leia=True`, `security_risk="high"`) |
 | `ahsoka_special_mission` | Ahsoka Tano | Special Mission Review |
 | `yoda_encrypted_strategy` | Yoda | Jedi Council |
 | `field_operations` | Chewbacca | Field Operations |
@@ -307,13 +311,18 @@ ruff check .
 ## Status Values
 
 | Status | Meaning |
-|---|---|
+|---|---|---|
 | `new` | Request received, not yet processed |
 | `security_review` | Medium-risk, flagged for security review |
+| `flagged` | Suspected threat, flagged by security scan |
 | `quarantined` | High-risk Dark Side threat, blocked |
 | `routed` | Assigned to owner/team |
 | `assigned` | Task created, awaiting action |
+| `awaiting_confirmation` | Calendar proposal sent, awaiting confirmation |
+| `scheduled` | Calendar confirmed, event scheduled |
+| `in_progress` | Work actively being done |
 | `completed` | All pipeline agents finished |
+| `escalated_to_leia` | Sensitive case forwarded to General Leia |
 | `error` | Processing failed |
 
 **Priority values:** `low`, `medium`, `high`, `critical`
@@ -342,12 +351,12 @@ Fields: `message_id`, `requestor`, `date`, `time`, `duration`, `subject`, `is_pr
 
 ## Integration Modules
 
-Each integration lives in `integrations/` and auto-detects credentials. If credentials are present, it makes real API calls. If not, it falls back to a mock with logging.
+External API integrations live in `integrations/` and auto-detect credentials. Pipeline agents in `agents/` handle business logic. All modules follow the same pattern: if credentials are present, they make real API calls; if not, they fall back to a mock with logging.
 
 | Integration | File | Real API | Mock fallback |
 |---|---|---|---|
-| Message store | `agents/reporter.py` | PostgreSQL / SQLite via SQLAlchemy | In-memory dict |
-| Calendar (booking) | `agents/calendar.py` | Google Calendar API / CalDAV | In-memory list |
+| Message store | `database.py` | SQLite via built-in `sqlite3` | In-memory SQLite (`:memory:`) |
+| Calendar (booking) | `agents/calendar.py` | Google Calendar API / CalDAV | SQLite via database.py |
 | Classifier | `agents/classifier.py` | NLP classifier (spaCy, BERT, OpenAI) | Keyword matching |
 | Security scanner | `agents/security_agent.py` | Threat intel API / ML model | Keyword scoring |
 | Encryption | `agents/encryption.py` | AES-256 / GPG / libsodium | Reverse-string cipher |
@@ -390,7 +399,7 @@ The `.env.example` file contains all the environment variables needed for real i
 4. The system **never reveals private calendar details** via the public API.
 5. Yoda strategy requests use **encrypted transmission** (reverse-string cipher in demo mode, swappable for real encryption).
 6. Medium-risk messages are held in `SECURITY_REVIEW` status — classified and notified but no task is created until review.
-7. Grogu sensitive cases restrict details.
+7. Grogu sensitive cases: sets `requires_leia=True`, `security_risk="high"`, restricts message details with `[RESTRICTED]` error text.
 8. Din Djarin protection cases are marked restricted.
 9. Every request is logged.
 10. Every routed request creates a `Task` record.

@@ -45,6 +45,5 @@ export const api = {
   demoLoad: (signal) => request('POST', '/demo/load', undefined, signal, 60000),
   reset: (signal) => request('POST', '/reset', undefined, signal),
   inbox: (signal) => request('GET', '/briefing/inbox', undefined, signal),
-  integrations: (signal) => request('GET', '/integrations', undefined, signal),
   generateBriefing: (signal) => request('POST', '/briefings/generate', undefined, signal),
 }

@@ -64,7 +64,7 @@ export default function MessageForm({ onMessageSent }) {
                   <tr><td>Owner</td><td>{result.data.owner || '-'}</td></tr>
                   <tr><td>Risk Score</td><td>{result.data.risk_score}</td></tr>
                   <tr><td>Encrypted</td><td>{result.data.encrypted ? 'Yes' : 'No'}</td></tr>
-                  {result.data.error && <tr><td>Error</td><td style={{ color: '#ef5350' }}>{result.data.error}</td></tr>}
+                  {result.data.error && <tr><td>Error</td><td style={{ color: 'var(--sith)' }}>{result.data.error}</td></tr>}
                 </tbody>
               </table>
             </div>

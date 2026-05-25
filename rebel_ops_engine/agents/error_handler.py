@@ -3,6 +3,7 @@ import threading
 from uuid import uuid4
 
 from agents.base import Agent
+from database import Database
 from integrations import clickup_client
 from models import Message, MessageStatus, Task
 
@@ -10,8 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class ErrorProtocolAgent(Agent):
-    def __init__(self):
-        self._error_tasks: list[Task] = []
+    def __init__(self, db: Database | None = None):
+        self._lock = threading.Lock()
+        self._db = db or Database(":memory:")
         self._clickup_results: dict[str, dict] = {}
 
     @property
@@ -36,7 +38,7 @@ class ErrorProtocolAgent(Agent):
                 priority="high",
                 status="open",
             )
-            self._error_tasks.append(task)
+            self._db.insert_task(task, source="error")
             self._sync_clickup_async(task, message.content)
             message.trace.append({"agent": self.name, "action": "quarantine_logged", "details": {"task_id": task.id}})
 
@@ -53,7 +55,7 @@ class ErrorProtocolAgent(Agent):
                 priority="medium",
                 status="open",
             )
-            self._error_tasks.append(task)
+            self._db.insert_task(task, source="error")
             self._sync_clickup_async(task, message.content)
             message.trace.append({"agent": self.name, "action": "error_logged", "details": {"task_id": task.id}})
 
@@ -65,7 +67,8 @@ class ErrorProtocolAgent(Agent):
         return message
 
     def _sync_clickup_async(self, task: Task, content: str = ""):
-        self._clickup_results[task.id] = {"status": "initiated"}
+        with self._lock:
+            self._clickup_results[task.id] = {"status": "initiated"}
         thread = threading.Thread(target=self._sync_clickup, args=(task, content))
         thread.start()
 
@@ -78,7 +81,8 @@ class ErrorProtocolAgent(Agent):
             team=task.assigned_team,
             content=content,
         )
-        self._clickup_results[task.id] = result
+        with self._lock:
+            self._clickup_results[task.id] = result
         if result["status"] == "mocked":
             logger.info("[CLICKUP] Error task %s synced (mock)", task.id)
         elif result["status"] == "created":
@@ -87,11 +91,13 @@ class ErrorProtocolAgent(Agent):
             logger.warning("[CLICKUP] Error task %s failed: %s", task.id, result.get("error"))
 
     def get_error_tasks(self) -> list[Task]:
-        return list(self._error_tasks)
+        return self._db.get_tasks(source="error")
 
     def get_clickup_results(self) -> dict[str, dict]:
-        return dict(self._clickup_results)
+        with self._lock:
+            return dict(self._clickup_results)
 
     def reset(self):
-        self._error_tasks.clear()
-        self._clickup_results.clear()
+        self._db.reset_all()
+        with self._lock:
+            self._clickup_results.clear()

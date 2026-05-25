@@ -7,7 +7,9 @@ import Calendar from './components/Calendar.jsx'
 import Tasks from './components/Tasks.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import MorningBriefing from './components/MorningBriefing.jsx'
+import Owners from './components/Owners.jsx'
 import { api } from './api.js'
+import { useTheme } from './ThemeContext.jsx'
 
 const PAGES = {
   morning: { label: '\u2615 Morning Briefing', cmp: MorningBriefing },
@@ -15,6 +17,7 @@ const PAGES = {
   architecture: { label: '\uD83D\uDD17 Architecture', cmp: WorkflowGraph },
   briefing: { label: '\uD83D\uDCC4 Briefing', cmp: Briefing },
   intake: { label: '\uD83D\uDCE9 Send Message', cmp: MessageForm },
+  owners: { label: '\uD83D\uDC65 Team Directory', cmp: Owners },
   calendar: { label: '\uD83D\uDCC5 Calendar', cmp: Calendar },
   tasks: { label: '\uD83D\uDCDD Tasks', cmp: Tasks },
 }
@@ -56,6 +59,7 @@ export default function App() {
     setLoading(false)
   }
 
+  const { theme, toggleTheme } = useTheme()
   const PageComponent = PAGES[page].cmp
 
   return (
@@ -66,6 +70,10 @@ export default function App() {
           <span>REBEL OPS</span>
           <small>Operations Engine v2.0</small>
         </h1>
+        <button className="theme-toggle" onClick={toggleTheme}>
+          <span className="icon">{theme === 'light' ? '\uD83C\uDF19' : '\u2600\uFE0F'}</span>
+          <span>{theme === 'light' ? 'Dark theme' : 'Light theme'}</span>
+        </button>
         <nav>
           {Object.entries(PAGES).map(([key, { label }]) => (
             <button key={key} className={page === key ? 'active' : ''} onClick={() => setPage(key)}>
@@ -73,14 +81,14 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div style={{ padding: '20px 16px 0', borderTop: '1px solid #2a3346', marginTop: 20 }}>
+        <div style={{ padding: '20px 16px 0', borderTop: '1px solid var(--line-strong)', marginTop: 20 }}>
           <button className="btn btn-success" style={{ width: '100%', marginBottom: 8 }} onClick={handleDemo} disabled={loading}>
             Load Demo
           </button>
           <button className="btn btn-outline" style={{ width: '100%' }} onClick={handleReset} disabled={loading}>
             Reset State
           </button>
-          {demoMsg && <div style={{ fontSize: 11, color: '#6b6b66', marginTop: 8 }}>{demoMsg}</div>}
+          {demoMsg && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>{demoMsg}</div>}
         </div>
       </div>
       <div className="main">

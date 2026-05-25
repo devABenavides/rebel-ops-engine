@@ -9,7 +9,7 @@ export default function Calendar() {
   useEffect(() => {
     let cancelled = false
     api.calendar()
-      .then((data) => { if (!cancelled) setBookings(data) })
+      .then((data) => { if (!cancelled) setBookings(data.data || data) })
       .catch((err) => { if (!cancelled) setError(err.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -29,7 +29,7 @@ export default function Calendar() {
           <thead><tr><th>Requestor</th><th>Subject</th></tr></thead>
           <tbody>
             {bookings.length === 0 && (
-              <tr><td colSpan={2} style={{ textAlign: 'center', padding: 20, color: '#6b6b66' }}>No public bookings</td></tr>
+              <tr><td colSpan={2} style={{ textAlign: 'center', padding: 20, color: 'var(--muted)' }}>No public bookings</td></tr>
             )}
             {bookings.map((b) => (
               <tr key={b.message_id}>

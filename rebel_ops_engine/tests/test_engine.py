@@ -1,6 +1,19 @@
+from unittest import mock
+
 import pytest
 
-from main import app, calendar, encryption, error_handler, reporter, router
+import main as main_module
+from main import (
+    _message_to_dict,
+    app,
+    calendar,
+    encryption,
+    error_handler,
+    intake,
+    reporter,
+    router,
+)
+from models import Category, Channel, Message, MessageStatus, Owner
 
 
 @pytest.fixture
@@ -199,7 +212,7 @@ def test_leia_calendar_private_not_exposed(client):
         "content": "We need a private strategy meeting with General Leia for next Tuesday at 1400 hours.",
     })
     resp = client.get("/api/calendar")
-    bookings = resp.get_json()
+    bookings = resp.get_json()["data"]
     private_bookings = [b for b in bookings if b["is_private"]]
     assert len(private_bookings) == 0
 
@@ -271,6 +284,8 @@ def test_grogu_sensitive_case(client):
     assert data["category"] == "jedi_training_diplomacy"
     assert data["owner"] == "Grogu Care Team"
     assert data["requires_jedi"] is True
+    assert data["requires_leia"] is True
+    assert data["security_risk"] == "high"
     assert data["jedi_case_type"] == "force_sensitive"
 
 
@@ -383,7 +398,7 @@ def test_list_messages(client):
     resp = client.get("/api/messages")
     data = resp.get_json()
     assert resp.status_code == 200
-    assert len(data) == 16
+    assert len(data["data"]) == 16
 
 
 def test_get_single_message(client):
@@ -407,7 +422,7 @@ def test_get_single_message_not_found(client):
 
 def test_agents_list(client):
     resp = client.get("/api/agents")
-    data = resp.get_json()
+    data = resp.get_json()["data"]
     assert resp.status_code == 200
     names = [a["name"] for a in data]
     assert "IntakeAgent" in names
@@ -427,7 +442,7 @@ def test_agents_list(client):
 def test_tasks_created_after_demo(client):
     client.post("/api/demo/load")
     resp = client.get("/tasks")
-    tasks = resp.get_json()
+    tasks = resp.get_json()["data"]
     assert resp.status_code == 200
     assert len(tasks) >= 14
     for t in tasks:
@@ -443,7 +458,7 @@ def test_recruitment_creates_task(client):
         "content": "I am a pilot and I want to join the Rebellion.",
     })
     resp = client.get("/tasks")
-    tasks = resp.get_json()
+    tasks = resp.get_json()["data"]
     recruitment_tasks = [t for t in tasks if "Recruitment" in t.get("assigned_team", "")]
     assert len(recruitment_tasks) >= 1
 
@@ -474,7 +489,7 @@ def test_briefing_generate_endpoint(client):
 def test_calendar_no_private_exposure(client):
     client.post("/api/demo/load")
     resp = client.get("/api/calendar")
-    data = resp.get_json()
+    data = resp.get_json()["data"]
     for b in data:
         assert not b["is_private"], f"Private booking exposed: {b}"
 
@@ -484,12 +499,12 @@ def test_calendar_no_private_exposure(client):
 def test_reset(client):
     client.post("/api/demo/load")
     resp = client.get("/api/messages")
-    assert len(resp.get_json()) == 16
+    assert len(resp.get_json()["data"]) == 16
     client.post("/api/reset")
     resp = client.get("/api/messages")
-    assert len(resp.get_json()) == 0
+    assert len(resp.get_json()["data"]) == 0
     resp = client.get("/tasks")
-    assert len(resp.get_json()) == 0
+    assert len(resp.get_json()["data"]) == 0
 
 # ---- Webhooks ----
 def test_whatsapp_webhook_verify_valid(client):
@@ -559,15 +574,11 @@ def test_request_trace_not_found(client):
     assert resp.status_code == 404
 
 
-# ---- Integration Status ----
+# ---- Integration Status (removed — was gated for security) ----
 
-def test_integration_status(client):
+def test_integration_status_removed(client):
     resp = client.get("/api/integrations")
-    data = resp.get_json()
-    assert resp.status_code == 200
-    for key in ("gmail", "calendar", "clickup", "whatsapp", "slack"):
-        assert key in data
-        assert isinstance(data[key], bool)
+    assert resp.status_code == 404
 
 
 # ---- Briefing Inbox ----
@@ -593,3 +604,241 @@ def test_briefing_inbox_after_demo(client):
     assert len(data["messages"]) == 16
     assert isinstance(data["delegation"], dict)
     assert len(data["delegation"]) > 0
+
+
+# ---- T1: Pipeline exception handling ----
+
+def test_pipeline_exception_handling(client):
+    with mock.patch.object(intake, "process", side_effect=ValueError("intake exploded")):
+        resp = client.post("/api/intake", json={
+            "channel": "intergalactic_whatsapp",
+            "sender": "Test User",
+            "content": "This will trigger an exception",
+        })
+    data = resp.get_json()
+    assert resp.status_code == 400
+    assert data["status"] == "error"
+    assert "intake exploded" in data["error"]
+
+    resp2 = client.get("/tasks")
+    tasks = resp2.get_json()["data"]
+    error_tasks = [t for t in tasks if "Automation Error" in t.get("title", "")]
+    assert len(error_tasks) >= 1
+
+
+# ---- T2: Calendar confirmation endpoint ----
+
+def test_calendar_confirm_endpoint(client):
+    resp = client.post("/api/intake", json={
+        "channel": "hologram_email",
+        "sender": "Mon Mothma's Aide",
+        "content": "We need a briefing with General Leia next Tuesday at 10:00 about funding.",
+    })
+    data = resp.get_json()
+    assert data["category"] == "calendar_booking"
+    assert data["status"] == "awaiting_confirmation"
+    assert len(data.get("proposals", [])) > 0
+    msg_id = data["id"]
+
+    confirm_resp = client.get(f"/api/calendar/confirm/{msg_id}/0")
+    assert confirm_resp.status_code == 200
+    assert b"Confirmed" in confirm_resp.data
+    assert b"General Leia" in confirm_resp.data
+
+    msg_resp = client.get(f"/api/messages/{msg_id}")
+    msg_data = msg_resp.get_json()
+    assert len(msg_data.get("proposals", [])) == 0
+    assert msg_data["status"] == "completed"
+
+
+def test_calendar_confirm_not_found(client):
+    resp = client.get("/api/calendar/confirm/nonexistent-id/0")
+    assert resp.status_code == 404
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Booking not found"
+
+def test_calendar_confirm_invalid_slot(client):
+    resp = client.post("/api/intake", json={
+        "channel": "hologram_email",
+        "sender": "Mon Mothma's Aide",
+        "content": "Briefing with General Leia next Wednesday at 14:00",
+    })
+    data = resp.get_json()
+    assert data["status"] == "awaiting_confirmation", f"Expected awaiting_confirmation, got {data['status']}"
+    msg_id = data["id"]
+    num_slots = len(data.get("proposals", []))
+
+    resp = client.get(f"/api/calendar/confirm/{msg_id}/{num_slots + 1}")
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Invalid slot - please choose a valid option"
+
+
+# ---- T3: Gmail webhook parsing ----
+
+def test_gmail_webhook_parsing(client):
+    fake_emails = [
+        {
+            "id": "msg_abc123",
+            "from": "Outer Rim Scout",
+            "subject": "Stormtroopers spotted near base",
+            "snippet": "We have spotted stormtroopers near our outpost on Lothal",
+        },
+    ]
+    with mock.patch.object(main_module.gmail, "list_unread", return_value=fake_emails), \
+         mock.patch.object(main_module.gmail, "mark_read") as mock_mark:
+        resp = client.post("/webhooks/gmail", json={"message": {"data": "test"}})
+        assert resp.status_code == 200
+
+        msgs_resp = client.get("/api/messages")
+        msgs = msgs_resp.get_json()["data"]
+        match = [m for m in msgs if "Outer Rim Scout" in m["sender"]]
+        assert len(match) >= 1
+        assert "Stormtroopers" in match[0]["content"]
+
+        mock_mark.assert_called_once_with("msg_abc123")
+
+
+def test_gmail_webhook_empty_list(client):
+    with mock.patch.object(main_module.gmail, "list_unread", return_value=[]):
+        resp = client.post("/webhooks/gmail", json={"message": {"data": "test"}})
+        assert resp.status_code == 200
+
+        msgs_resp = client.get("/api/messages")
+        assert len(msgs_resp.get_json()["data"]) == 0
+
+
+# ---- T4: WhatsApp webhook full parsing ----
+
+def test_whatsapp_webhook_intake_created(client):
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "messages": [{
+                        "from": "Scout Leader",
+                        "text": {"body": "Need supplies on Hoth"},
+                    }],
+                },
+            }],
+        }],
+    }
+    resp = client.post("/webhooks/whatsapp", json=payload)
+    assert resp.status_code == 200
+
+    msgs_resp = client.get("/api/messages")
+    msgs = msgs_resp.get_json()["data"]
+    match = [m for m in msgs if "Scout Leader" in m["sender"]]
+    assert len(match) >= 1
+    assert "Need supplies on Hoth" in match[0]["content"]
+
+
+def test_whatsapp_webhook_malformed_payload(client):
+    resp = client.post("/webhooks/whatsapp", json={})
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "ok"}
+
+    resp = client.post("/webhooks/whatsapp", json={
+        "entry": [{"changes": [{"value": {"messages": [{}]}}]}],
+    })
+    assert resp.status_code == 200
+
+    resp = client.post("/webhooks/whatsapp", json={
+        "entry": [{"changes": [{"value": {"messages": [{"from": "123"}]}}]}],
+    })
+    assert resp.status_code == 200
+
+
+# ---- T6: _message_to_dict serialization ----
+
+def test_message_to_dict_all_keys():
+    msg = Message(
+        channel=Channel.INTERGALACTIC_WHATSAPP,
+        sender="Test Sender",
+        content="Test content",
+    )
+    msg.id = "test-id-abc"
+    msg.category = Category.LOGISTICS
+    msg.owner = Owner.HAN_SOLO
+    msg.status = MessageStatus.COMPLETED
+    msg.encrypted = False
+    msg.risk_score = 0
+    msg.error = None
+    msg.processed_by = ["IntakeAgent"]
+    msg.priority = "medium"
+    msg.security_risk = "low"
+    msg.jedi_case_type = "none"
+    msg.requires_leia = False
+    msg.requires_jedi = False
+    msg.trusted_request = True
+    msg.dark_side_indicators = []
+    msg.summary = "Test summary"
+    msg.suggested_next_action = "Test action"
+    msg.assigned_team = "Logistics Team"
+    msg.subject = ""
+    msg.planet_or_sector = ""
+    msg.proposals = []
+    msg.trace = [{"agent": "IntakeAgent", "action": "validated"}]
+
+    d = _message_to_dict(msg)
+    assert d["id"] == "test-id-abc"
+    assert d["channel"] == "intergalactic_whatsapp"
+    assert d["sender"] == "Test Sender"
+    assert d["content"] == "Test content"
+    assert d["category"] == "logistics"
+    assert d["owner"] == "Han Solo"
+    assert d["status"] == "completed"
+    assert d["risk_score"] == 0
+    assert d["encrypted"] is False
+    assert d["error"] is None
+    assert d["processed_by"] == ["IntakeAgent"]
+    assert d["trace"] == [{"agent": "IntakeAgent", "action": "validated"}]
+    assert d["proposals"] == []
+
+
+def test_message_to_dict_content_truncation():
+    long_content = "X" * 5000
+    msg = Message(
+        channel=Channel.HOLOGRAM_EMAIL,
+        sender="Long Content Sender",
+        content=long_content,
+    )
+    msg.id = "test-id-trunc"
+    msg.category = Category.OTHER
+    msg.owner = Owner.OPERATIONS_TEAM
+    msg.status = MessageStatus.COMPLETED
+
+    d = _message_to_dict(msg)
+    assert len(d["content"]) == 1000
+    assert d["content"] == "X" * 1000
+
+
+def test_message_to_dict_null_fields():
+    msg = Message(
+        channel=Channel.INTERGALACTIC_WHATSAPP,
+        sender="Null Fields",
+        content="Test",
+    )
+    msg.id = "test-null-fields"
+    msg.category = None
+    msg.owner = None
+
+    d = _message_to_dict(msg)
+    assert d["category"] is None
+    assert d["owner"] is None
+    assert d["error"] is None
+
+
+def test_message_to_dict_encrypted_content(client):
+    resp = client.post("/api/intake", json={
+        "channel": "hologram_email",
+        "sender": "Council of Ryloth",
+        "content": "Should we join openly or remain hidden? This is a strategic question.",
+    })
+    data = resp.get_json()
+    assert data["encrypted"] is True
+
+    get_resp = client.get(f"/api/messages/{data['id']}")
+    msg_data = get_resp.get_json()
+    assert "[DEMO ENCRYPTED]" in data["content"]
+    assert msg_data["encrypted"] is True
+

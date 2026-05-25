@@ -36,18 +36,20 @@ cd rebel_ops_engine/frontend && npm run dev
 ## Key files
 - `main.py` — Flask app, 20+ routes, pipeline orchestrator
 - `models.py` — Message, Task, EncryptedTransmission, CalendarBooking, DailyBriefing dataclasses + enums (Channel, MessageStatus, Priority, SecurityRisk, JediCaseType, Category, Owner)
+- `database.py` — SQLite persistence layer (4 tables: messages, tasks, calendar_bookings, encrypted_transmissions)
 - `security.py` — Risk scoring, category→owner/team mapping, routing tables, keyword detection
 - `clients.py` — Integration client interfaces (WhatsAppClient, HologramEmailClient, CalendarClient, NotificationClient, ReportDeliveryClient)
 - `agents/` — 9 agents in pipeline order (NotificationAgent uses channel-specific templates: WhatsApp, hologram, quarantine, BB-8 alert, etc.)
 - `demo.py` — 16 spec-aligned demo messages
 - `briefing.py` — Daily Hologram Briefing generator with full category/owner breakdown
 - `.env.example` — Environment variable template for replacing mocked integrations
-- `tests/test_engine.py` — 52 integration tests
+- `tests/test_engine.py` — 64 integration tests
 - `tests/test_agents.py` — 70 isolated unit tests
 - `tests/test_security.py` — 54 pure unit tests for security functions
 - `tests/test_briefing.py` — 15 unit tests for briefings
+- **Total: 203 tests** — run with `python -m pytest tests/ -v`
 - `tests/conftest.py` — Shared fixtures (base_message, fresh_router, etc.)
-- `frontend/src/` — React app with 8 page-level components + MorningBriefing CSS
+- `frontend/src/` — React app with 9 page-level components + CSS
 - `pyproject.toml` — Ruff linter config
 
 ## Agent pipeline order
@@ -67,6 +69,7 @@ Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the re
 | investor_partner | Partnerships Team | Partnerships |
 | urgent_security | Security Team | Security Team |
 | jedi_training_diplomacy | Luke Skywalker + Ben Kenobi | Jedi Training & Diplomacy Team |
+| grogu_care *(detected under jedi_training_diplomacy)* | Grogu Care Team → General Leia | Escalates to Leia (requires_leia=True, security_risk="high") |
 | ahsoka_special_mission | Ahsoka Tano | Special Mission Review |
 | yoda_encrypted_strategy | Yoda | Jedi Council |
 | field_operations | Chewbacca | Field Operations |
@@ -83,6 +86,7 @@ Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the re
 - Security output includes: security_risk (low/medium/high), dark_side_indicators list, trusted_request boolean
 - Every routed request creates a Task record
 - SECURITY_REVIEW messages are classified and notified but held at router (no task created)
+- Grogu Care sensitive cases: sets `requires_leia=True`, `security_risk="high"`, and restricts message details with error text `[RESTRICTED]`
 
 ## API endpoints
 - `GET /health` — Health check
@@ -96,7 +100,6 @@ Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the re
 - `GET /briefings/daily` — Get daily Hologram Briefing
 - `POST /briefings/generate` — Generate briefing
 - `GET /api/briefing/inbox` — Morning Briefing inbox data (messages, tasks, delegation, schedule)
-- `GET /api/integrations` — Integration status (which services are configured)
 - `GET /api/requests/<id>/trace` — Get pipeline trace for a request
 - `GET /webhooks/whatsapp` — WhatsApp webhook verification
 - `POST /webhooks/whatsapp` — WhatsApp webhook incoming message
@@ -104,5 +107,5 @@ Pipeline built from `AGENT_REGISTRY` dict in `main.py`. Add new agents to the re
 - `POST /api/intake` — Submit a message (legacy, specify channel)
 - `GET /api/agents` — List all 9 agents in the pipeline
 - `GET /api/calendar` — List public calendar bookings
-- `POST /api/reset` — Reset all in-memory state
+- `POST /api/reset` — Reset all state
 - `POST /webhooks/clickup` — ClickUp webhook event

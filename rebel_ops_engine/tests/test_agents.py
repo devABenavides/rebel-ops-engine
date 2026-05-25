@@ -1,5 +1,7 @@
 """Isolated unit tests for individual agents."""
 
+import threading
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -251,6 +253,8 @@ class TestRoutingAgent:
         msg.category = Category.JEDI_TRAINING_DIPLOMACY
         result = agent.process(msg)
         assert result.owner == Owner.GROGU_CARE
+        assert result.requires_leia is True
+        assert result.security_risk == "high"
 
     def test_security_review_hold(self):
         agent = RoutingAgent()
@@ -265,13 +269,13 @@ class TestRoutingAgent:
         agent = RoutingAgent()
         msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Test", content="test")
         msg.category = Category.LOGISTICS
-        agent.process(msg)
-        import time
-        time.sleep(0.5)
+        with patch.object(threading.Thread, "start", lambda self: self.run()), \
+             patch("integrations.clickup_client.create_task", return_value={"status": "mocked", "id": "123"}):
+            agent.process(msg)
         results = agent.get_clickup_results()
         assert len(results) == 1
         task_id = list(results.keys())[0]
-        assert results[task_id]["status"] in ("mocked", "initiated")
+        assert results[task_id]["status"] in ("mocked", "created")
 
 
 # ---- YodaEncryptionAgent ----
@@ -452,13 +456,13 @@ class TestErrorProtocolAgent:
         msg = Message(channel=Channel.INTERGALACTIC_WHATSAPP, sender="Test", content="test")
         msg.status = MessageStatus.QUARANTINED
         msg.error = "test"
-        agent.process(msg)
-        import time
-        time.sleep(0.5)
+        with patch.object(threading.Thread, "start", lambda self: self.run()), \
+             patch("integrations.clickup_client.create_task", return_value={"status": "mocked", "id": "123"}):
+            agent.process(msg)
         results = agent.get_clickup_results()
         assert len(results) == 1
         task_id = list(results.keys())[0]
-        assert results[task_id]["status"] in ("mocked", "initiated")
+        assert results[task_id]["status"] in ("mocked", "created")
 
 
 # ---- NotificationAgent ----

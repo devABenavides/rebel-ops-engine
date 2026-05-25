@@ -2,6 +2,7 @@ import logging
 from uuid import uuid4
 
 from agents.base import Agent
+from database import Database
 from models import EncryptedTransmission, Message, MessageStatus
 from security import is_yoda_strategy
 
@@ -9,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class YodaEncryptionAgent(Agent):
-    def __init__(self):
-        self._transmissions: list[EncryptedTransmission] = []
+    def __init__(self, db: Database | None = None):
+        self._db = db or Database(":memory:")
 
     @property
     def name(self) -> str:
@@ -39,7 +40,7 @@ class YodaEncryptionAgent(Agent):
                 ciphertext=ciphertext,
                 encryption_method="demo_reverse_string",
             )
-            self._transmissions.append(transmission)
+            self._db.insert_transmission(transmission)
             message.trace.append({
                 "agent": self.name, "action": "encrypted",
                 "details": {"transmission_id": transmission.id, "method": "demo_reverse_string"},
@@ -55,7 +56,7 @@ class YodaEncryptionAgent(Agent):
         return message
 
     def get_transmissions(self) -> list[EncryptedTransmission]:
-        return list(self._transmissions)
+        return self._db.get_transmissions()
 
     def reset(self):
-        self._transmissions.clear()
+        self._db.reset_all()

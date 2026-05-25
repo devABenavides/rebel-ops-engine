@@ -17,7 +17,10 @@ class MessageStatus(Enum):
     ROUTED = "routed"
     ASSIGNED = "assigned"
     AWAITING_CONFIRMATION = "awaiting_confirmation"
+    SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
+    ESCALATED_TO_LEIA = "escalated_to_leia"
     ERROR = "error"
 
 

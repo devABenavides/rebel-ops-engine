@@ -18,7 +18,7 @@ Built as an MVP with Flask and React. Every external integration (Gmail, Google 
 - **Daily Hologram Briefing** — ReportingAgent generates a full operational summary by category, owner, and urgency, delivered via Gmail
 - **Real-time dashboard** — React + Vite frontend with command center, workflow graph, inbox, calendar, and task views
 - **Webhook integration** — Accepts incoming messages via WhatsApp and Gmail webhooks, syncs tasks to ClickUp
-- **Full audit trail** — Every request carries a pipeline trace; all in-memory state is resettable via API
+- **Full audit trail** — Every request carries a pipeline trace; all state is resettable via API
 
 ## Why I built this
 
@@ -67,7 +67,7 @@ With this system:
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.14, Flask 3.1 |
+| Backend | Developed on Python 3.14 alpha — 3.12+ recommended, Flask 3.1 |
 | Frontend | React 19, Vite 6, JavaScript (JSX), plain CSS |
 | Integrations | Gmail API, Google Calendar API, Meta WhatsApp Cloud API, ClickUp API |
 | Testing | pytest 8.3, pytest-cov |

@@ -4,7 +4,7 @@ import os
 import socket
 import sys
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 from agents.calendar import CalendarAgent
 from agents.classifier import C3POClassifierAgent
@@ -16,6 +16,7 @@ from agents.reporter import ReportingAgent
 from agents.router import RoutingAgent
 from agents.security_agent import DarkSideSecurityAgent
 from briefing import generate_hologram_briefing
+from database import Database
 from demo import DEMO_MESSAGES
 from integrations import clickup_client
 from integrations import gmail_client as gmail
@@ -30,19 +31,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="frontend/dist", static_url_path="")
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24).hex()
 ensure_env_loaded()
 
+db = Database()
 intake = IntakeAgent()
 security = DarkSideSecurityAgent()
 classifier = C3POClassifierAgent()
-router = RoutingAgent()
-encryption = YodaEncryptionAgent()
+router = RoutingAgent(db)
+encryption = YodaEncryptionAgent(db)
 notifier = NotificationAgent()
-calendar = CalendarAgent()
-reporter = ReportingAgent()
-error_handler = ErrorProtocolAgent()
+calendar = CalendarAgent(db)
+reporter = ReportingAgent(db)
+error_handler = ErrorProtocolAgent(db)
 
 AGENT_REGISTRY = {
     "IntakeAgent": (intake, "Receives and normalizes incoming requests from WhatsApp and Hologram Email"),
@@ -50,13 +52,25 @@ AGENT_REGISTRY = {
     "C3POClassifierAgent": (classifier, "Classifies requests into operational categories and recommends the best owner and team"),
     "RoutingAgent": (router, "Routes classified requests to the correct owner, assigns team, and creates tasks"),
     "YodaEncryptionAgent": (encryption, "Handles encrypted strategic transmissions for Master Yoda"),
-    "NotificationAgent": (notifier, "Sends channel-specific acknowledgments and templates (WhatsApp, Email, BB-8 alerts, etc.)"),
     "CalendarAgent": (calendar, "Manages calendar bookings and enforces Leia's private calendar protection"),
+    "NotificationAgent": (notifier, "Sends channel-specific acknowledgments and templates (WhatsApp, Email, BB-8 alerts, etc.)"),
     "ReportingAgent": (reporter, "Stores processed requests and generates the Daily Hologram Briefing"),
     "ErrorProtocolAgent": (error_handler, "Handles quarantined messages and processing errors, creates ops tasks"),
 }
 
 PIPELINE = [entry[0] for entry in AGENT_REGISTRY.values()]
+
+# Webhook idempotency — track processed message IDs to prevent duplicates
+_processed_webhook_ids: set[str] = set()
+
+# Webhook shared secret — if set, all POST webhooks require X-Webhook-Secret header
+_WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+
+def _require_webhook_auth():
+    if _WEBHOOK_SECRET and request.headers.get("X-Webhook-Secret") != _WEBHOOK_SECRET:
+        return jsonify({"error": "unauthorized"}), 401
+    return None
 
 
 def run_pipeline(message: Message) -> Message:
@@ -77,6 +91,7 @@ def run_pipeline(message: Message) -> Message:
                                MessageStatus.SECURITY_REVIEW, MessageStatus.FLAGGED,
                                MessageStatus.AWAITING_CONFIRMATION):
         message.status = MessageStatus.COMPLETED
+    db.insert_message(message)
     return message
 
 
@@ -110,6 +125,23 @@ def _message_to_dict(m: Message) -> dict:
     }
 
 
+def _paginated_response(items: list, request) -> dict:
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 100, type=int)
+    page = max(1, page)
+    limit = max(1, min(limit, 500))
+    total = len(items)
+    start = (page - 1) * limit
+    end = start + limit
+    return {
+        "data": items[start:end],
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": (total + limit - 1) // limit,
+    }
+
+
 def _handle_intake(channel: Channel, sender: str, content: str,
                    subject: str = "", contact: str = "",
                    planet: str = "") -> tuple[dict, int]:
@@ -124,6 +156,16 @@ def _handle_intake(channel: Channel, sender: str, content: str,
     message = run_pipeline(message)
     status_code = 400 if message.status in (MessageStatus.ERROR, MessageStatus.QUARANTINED) else 200
     return _message_to_dict(message), status_code
+
+
+# ---- Security headers ----
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+    return response
 
 
 # ---- Health ----
@@ -230,7 +272,7 @@ def requests_hologram_email():
 @app.route("/api/messages", methods=["GET"])
 def list_requests():
     msgs = reporter.get_all_messages()
-    return jsonify([_message_to_dict(m) for m in msgs])
+    return jsonify(_paginated_response([_message_to_dict(m) for m in msgs], request))
 
 
 @app.route("/requests/<message_id>", methods=["GET"])
@@ -254,7 +296,7 @@ def list_tasks():
         clickup_results[k] = v
     for k, v in error_handler.get_clickup_results().items():
         clickup_results[k] = v
-    return jsonify([
+    task_list = [
         {
             "id": t.id,
             "request_id": t.request_id,
@@ -268,23 +310,28 @@ def list_tasks():
             "clickup": clickup_results.get(t.id, {"status": "initiated"}),
         }
         for t in all_tasks
-    ])
+    ]
+    return jsonify(_paginated_response(task_list, request))
 
 @app.route("/api/agents", methods=["GET"])
 def api_agents():
-    return jsonify([
-        {"name": name, "description": desc}
-        for name, (_, desc) in AGENT_REGISTRY.items()
-    ])
-
+    return jsonify({
+        "data": [
+            {"name": name, "description": desc}
+            for name, (_, desc) in AGENT_REGISTRY.items()
+        ],
+        "page": 1,
+        "limit": 100,
+        "total": len(AGENT_REGISTRY),
+        "total_pages": 1,
+    })
 
 # ---- Demo ----
 
 @app.route("/api/demo/load", methods=["POST"])
 @app.route("/demo/seed", methods=["POST"])
 def api_demo_load():
-    router.reset()
-    error_handler.reset()
+    db.reset_all()
     clickup_client.clear_list()
     results = []
     for msg in DEMO_MESSAGES:
@@ -304,16 +351,18 @@ def api_demo_load():
             "assigned_team": result.assigned_team,
             "suggested_next_action": result.suggested_next_action[:100],
         })
-    return jsonify({"loaded": len(results), "results": results})
+    report = generate_hologram_briefing(reporter, calendar)
+    from clients import ReportDeliveryClient
+    email_result = ReportDeliveryClient().deliver_report(report)
+    logger.info("Briefing delivery: %s", email_result.get("status", "unknown"))
+
+    return jsonify({"loaded": len(results), "results": results, "briefing": report, "email_status": email_result.get("status")})
 
 
 @app.route("/demo/run-all", methods=["POST"])
+@app.route("/api/demo/run-all", methods=["POST"])
 def demo_run_all():
-    reporter.reset()
-    calendar.reset()
-    router.reset()
-    encryption.reset()
-    error_handler.reset()
+    db.reset_all()
 
     results = []
     for msg in DEMO_MESSAGES:
@@ -383,11 +432,7 @@ def request_trace(message_id):
 
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
-    reporter.reset()
-    calendar.reset()
-    router.reset()
-    encryption.reset()
-    error_handler.reset()
+    db.reset_all()
     clickup_client.clear_list()
     return jsonify({"status": "reset"}), 200
 
@@ -397,7 +442,7 @@ def api_reset():
 @app.route("/api/calendar", methods=["GET"])
 def api_calendar():
     bookings = calendar.get_public_bookings()
-    return jsonify([
+    return jsonify(_paginated_response([
         {
             "message_id": b.message_id,
             "requestor": b.requestor,
@@ -407,8 +452,7 @@ def api_calendar():
             "is_private": b.is_private,
         }
         for b in bookings
-    ])
-
+    ], request))
 
 # ---- Webhooks ----
 
@@ -423,7 +467,14 @@ def whatsapp_webhook_verify():
 
 @app.route("/webhooks/whatsapp", methods=["POST"])
 def whatsapp_webhook():
+    auth = _require_webhook_auth()
+    if auth:
+        return auth
     data = request.get_json(force=True)
+    msg_id = data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("messages", [{}])[0].get("id", "")
+    if msg_id and msg_id in _processed_webhook_ids:
+        logger.info("[WEBHOOK] Duplicate WhatsApp message %s - skipped", msg_id)
+        return jsonify({"status": "ok", "duplicate": True}), 200
     logger.info("[WEBHOOK] WhatsApp incoming: %s", json.dumps(data, indent=2)[:500])
     try:
         entry = data.get("entry", [{}])[0]
@@ -433,6 +484,8 @@ def whatsapp_webhook():
         text = msg.get("text", {}).get("body", "")
         if text:
             _handle_intake(Channel.INTERGALACTIC_WHATSAPP, from_number, text)
+        if msg_id:
+            _processed_webhook_ids.add(msg_id)
     except Exception as e:
         logger.warning("[WEBHOOK] Failed to parse WhatsApp message: %s", e)
     return jsonify({"status": "ok"}), 200
@@ -440,6 +493,9 @@ def whatsapp_webhook():
 
 @app.route("/webhooks/gmail", methods=["POST"])
 def gmail_webhook():
+    auth = _require_webhook_auth()
+    if auth:
+        return auth
     data = request.get_json(force=True)
     logger.info("[WEBHOOK] Gmail notification: %s", json.dumps(data, indent=2)[:500])
     try:
@@ -456,22 +512,12 @@ def gmail_webhook():
 
 @app.route("/webhooks/clickup", methods=["POST"])
 def clickup_webhook():
+    auth = _require_webhook_auth()
+    if auth:
+        return auth
     data = request.get_json(force=True)
     logger.info("[WEBHOOK] ClickUp event: %s", json.dumps(data, indent=2)[:500])
     return jsonify({"status": "ok"}), 200
-
-
-# ---- Integration status ----
-
-@app.route("/api/integrations", methods=["GET"])
-def integration_status():
-    return jsonify({
-        "gmail": bool(os.getenv("GMAIL_CREDENTIALS_PATH")),
-        "calendar": bool(os.getenv("GOOGLE_CALENDAR_CREDENTIALS_PATH")),
-        "clickup": bool(os.getenv("CLICKUP_API_TOKEN")),
-        "whatsapp": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
-        "slack": bool(os.getenv("SLACK_WEBHOOK_URL")),
-    })
 
 
 # ---- Morning Briefing data ----
@@ -560,13 +606,13 @@ def calendar_confirm(message_id, slot):
 
     msg = reporter.get_message(message_id)
     if msg is None:
-        return "<h1>404</h1><p>Booking not found.</p>", 404
+        return jsonify({"error": "Booking not found"}), 404
 
     if not msg.proposals:
-        return "<h1>Already Confirmed</h1><p>This booking has already been confirmed.</p>"
+        return jsonify({"error": "This booking has already been confirmed"}), 400
 
     if slot < 0 or slot >= len(msg.proposals):
-        return "<h1>Invalid Slot</h1><p>Please choose a valid option.</p>", 400
+        return jsonify({"error": "Invalid slot - please choose a valid option"}), 400
 
     chosen_time = msg.proposals[slot]
     date_str = _cal_date(msg.content)
@@ -583,6 +629,7 @@ def calendar_confirm(message_id, slot):
         "action": "confirmed",
         "details": {"date": date_str, "time": confirmed_slot},
     })
+    db.insert_message(msg)
 
     email_body = (
         f"Your briefing with General Leia has been confirmed.\n\n"
@@ -613,16 +660,38 @@ def calendar_confirm(message_id, slot):
     """
 
 
+# ---- Serve production frontend (catch-all) ----
+
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_frontend(path):
+    if path and os.path.exists(os.path.join(_FRONTEND_DIST, path)):
+        return send_from_directory(_FRONTEND_DIST, path)
+    index = os.path.join(_FRONTEND_DIST, "index.html")
+    if os.path.exists(index):
+        return send_from_directory(_FRONTEND_DIST, "index.html")
+    return jsonify({"service": "Rebel Operations Engine", "status": "API only (frontend not built)"}), 200
+
+
 if __name__ == "__main__":
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    if sock.connect_ex(("127.0.0.1", 5000)) == 0:
-        logger.error("Port 5000 already in use — old process still running!")
-        logger.error("Kill it:  netstat -ano | findstr :5000  then  taskkill /f /pid <PID>")
-        sys.exit(1)
-    sock.close()
+    _host = os.getenv("FLASK_HOST", "127.0.0.1")
+    _port = int(os.getenv("FLASK_PORT", "5000"))
+
+    if _host == "127.0.0.1":
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if sock.connect_ex(("127.0.0.1", _port)) == 0:
+            logger.error("Port %s already in use — old process still running!", _port)
+            logger.error("Kill it:  netstat -ano | findstr :%s  then  taskkill /f /pid <PID>", _port)
+            sys.exit(1)
+        sock.close()
 
     logger.info("=" * 50)
     logger.info("  Rebel Operations Engine v2.0")
-    logger.info("  Running at http://127.0.0.1:5000")
+    logger.info("  Running at http://%s:%s", _host, _port)
+    if not _WEBHOOK_SECRET:
+        logger.info("  Webhook auth: DISABLED (set WEBHOOK_SECRET for POST webhook auth)")
     logger.info("=" * 50)
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host=_host, port=_port, debug=False)

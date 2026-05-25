@@ -2,21 +2,22 @@ import logging
 from collections import Counter
 
 from agents.base import Agent
+from database import Database
 from models import DailyBriefing, Message, MessageStatus
 
 logger = logging.getLogger(__name__)
 
 
 class ReportingAgent(Agent):
-    def __init__(self):
-        self._store: dict[str, Message] = {}
+    def __init__(self, db: Database | None = None):
+        self._db = db or Database(":memory:")
 
     @property
     def name(self) -> str:
         return "ReportingAgent"
 
     def process(self, message: Message) -> Message:
-        self._store[message.id] = message
+        self._db.insert_message(message)
         message.trace.append({
             "agent": self.name, "action": "stored",
             "details": {"status": message.status.value, "owner": message.owner.value if message.owner else None},
@@ -26,16 +27,16 @@ class ReportingAgent(Agent):
         return message
 
     def get_all_messages(self) -> list[Message]:
-        return list(self._store.values())
+        return self._db.get_all_messages()
 
     def get_message(self, message_id: str) -> Message | None:
-        return self._store.get(message_id)
+        return self._db.get_message(message_id)
 
     def reset(self):
-        self._store.clear()
+        self._db.reset_all()
 
     def generate_daily_briefing(self, date_str: str) -> DailyBriefing:
-        msgs = [m for m in self._store.values() if m.timestamp.strftime("%Y-%m-%d") <= date_str]
+        msgs = [m for m in self._db.get_all_messages() if m.timestamp.strftime("%Y-%m-%d") <= date_str]
         quarantined = [m for m in msgs if m.status == MessageStatus.QUARANTINED]
         encrypted = [m for m in msgs if m.encrypted]
         by_category = Counter(m.category.value if m.category else "unknown" for m in msgs)

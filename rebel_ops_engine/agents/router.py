@@ -1,8 +1,10 @@
 import logging
+import re
 import threading
 from uuid import uuid4
 
 from agents.base import Agent
+from database import Database
 from integrations import clickup_client
 from models import Message, MessageStatus, Owner, Task
 from security import (
@@ -15,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class RoutingAgent(Agent):
-    def __init__(self):
-        self._tasks: list[Task] = []
+    def __init__(self, db: Database | None = None):
+        self._lock = threading.Lock()
+        self._db = db or Database(":memory:")
         self._clickup_results: dict[str, dict] = {}
 
     @property
@@ -33,10 +36,13 @@ class RoutingAgent(Agent):
         cat_val = message.category.value if message.category else "other"
 
         combined = (message.sender + " " + message.content).lower()
-        if ("force" in combined and ("child" in combined or "village" in combined)) or \
-           ("sense" in combined and "danger" in combined and "child" in combined):
+        if (re.search(r"\bforce\b", combined) and (re.search(r"\bchild\b", combined) or re.search(r"\bvillage\b", combined))) or \
+           (re.search(r"\bsense\b", combined) and re.search(r"\bdanger\b", combined) and re.search(r"\bchild\b", combined)):
             message.owner = Owner.GROGU_CARE
             message.assigned_team = "Jedi Council"
+            message.requires_leia = True
+            message.security_risk = "high"
+            message.error = "[RESTRICTED] Details classified per Grogu Care protocol"
         else:
             message.owner = CATEGORY_OWNER.get(cat_val, Owner.GENERAL_LEIA)
             message.assigned_team = CATEGORY_TEAM.get(cat_val, "Intake Review")
@@ -57,9 +63,10 @@ class RoutingAgent(Agent):
             description=message.summary or message.content[:200],
             priority=message.priority,
         )
-        self._tasks.append(task)
+        self._db.insert_task(task, source="router")
 
-        self._clickup_results[task.id] = {"status": "initiated"}
+        with self._lock:
+            self._clickup_results[task.id] = {"status": "initiated"}
         thread = threading.Thread(target=self._sync_clickup, args=(task, message.content))
         thread.start()
 
@@ -93,7 +100,8 @@ class RoutingAgent(Agent):
             team=task.assigned_team,
             content=content,
         )
-        self._clickup_results[task.id] = result
+        with self._lock:
+            self._clickup_results[task.id] = result
         if result["status"] == "mocked":
             logger.info("[CLICKUP] Task %s synced (mock)", task.id)
         elif result["status"] == "created":
@@ -102,11 +110,13 @@ class RoutingAgent(Agent):
             logger.warning("[CLICKUP] Task %s failed: %s", task.id, result.get("error"))
 
     def get_tasks(self) -> list[Task]:
-        return list(self._tasks)
+        return self._db.get_tasks(source="router")
 
     def get_clickup_results(self) -> dict[str, dict]:
-        return dict(self._clickup_results)
+        with self._lock:
+            return dict(self._clickup_results)
 
     def reset(self):
-        self._tasks.clear()
-        self._clickup_results.clear()
+        self._db.reset_all()
+        with self._lock:
+            self._clickup_results.clear()

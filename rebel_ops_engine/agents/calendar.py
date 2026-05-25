@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from agents.base import Agent
 from clients import CalendarClient
+from database import Database
 from models import CalendarBooking, Message, MessageStatus
 from security import contains_private_leia_info
 
@@ -76,8 +77,8 @@ def _extract_time(content: str) -> str:
 
 
 class CalendarAgent(Agent):
-    def __init__(self):
-        self._bookings: list[CalendarBooking] = []
+    def __init__(self, db: Database | None = None):
+        self._db = db or Database(":memory:")
 
     @property
     def name(self) -> str:
@@ -98,7 +99,7 @@ class CalendarAgent(Agent):
                 subject=message.content[:100],
                 is_private=is_private,
             )
-            self._bookings.append(booking)
+            self._db.insert_booking(booking)
 
             if not is_private and date_val != "unknown":
                 slots = cal_client.find_available_slots(date_val)
@@ -139,10 +140,10 @@ class CalendarAgent(Agent):
         return message
 
     def get_public_bookings(self) -> list[CalendarBooking]:
-        return [b for b in self._bookings if not b.is_private]
+        return self._db.get_public_bookings()
 
     def get_all_bookings(self) -> list[CalendarBooking]:
-        return list(self._bookings)
+        return self._db.get_all_bookings()
 
     def reset(self):
-        self._bookings.clear()
+        self._db.reset_all()
