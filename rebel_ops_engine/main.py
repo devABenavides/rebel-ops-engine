@@ -35,6 +35,8 @@ app = Flask(__name__, static_folder="frontend/dist", static_url_path="")
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24).hex()
 ensure_env_loaded()
 
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+
 db = Database()
 intake = IntakeAgent()
 security = DarkSideSecurityAgent()
@@ -179,6 +181,9 @@ def health():
 
 @app.route("/", methods=["GET"])
 def index():
+    index_path = os.path.join(_FRONTEND_DIST, "index.html")
+    if os.path.exists(index_path):
+        return send_from_directory(_FRONTEND_DIST, "index.html")
     return jsonify({
         "service": "Rebel Operations Engine",
         "version": "2.0.0",
@@ -661,9 +666,6 @@ def calendar_confirm(message_id, slot):
 
 
 # ---- Serve production frontend (catch-all) ----
-
-_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
-
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
