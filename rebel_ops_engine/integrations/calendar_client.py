@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from integrations.config import get
 
@@ -115,7 +115,11 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
         return []
 
     tz_name = _get_calendar_timezone()
-    tz_obj = ZoneInfo(tz_name)
+    try:
+        tz_obj = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        logger.warning("[CALENDAR] Timezone %s not found — falling back to mock slots", tz_name)
+        return [f"{h:02d}:00" for h in range(day_start, day_start + max_slots)]
     cal_start = day.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=tz_obj)
     cal_end = cal_start + timedelta(days=1)
     calendar_id = get("GOOGLE_CALENDAR_ID", "primary")
