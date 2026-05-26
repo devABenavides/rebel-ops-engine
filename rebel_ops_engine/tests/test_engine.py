@@ -583,7 +583,7 @@ def test_integration_status(client):
     resp = client.get("/api/integrations")
     data = resp.get_json()
     assert resp.status_code == 200
-    for key in ("gmail", "calendar", "clickup", "whatsapp", "discord", "slack"):
+    for key in ("gmail", "calendar", "clickup", "whatsapp", "discord"):
         assert key in data
         assert isinstance(data[key], bool)
 

@@ -195,7 +195,7 @@ python -m pytest tests/ -v
 ### Lint
 
 ```bash
-ruff check .
+pip install ruff && ruff check .
 ```
 
 ---
@@ -229,6 +229,7 @@ ruff check .
 | GET | `/api/requests/<id>/trace` | Get pipeline trace for a request |
 | POST | `/api/reset` | Reset all state |
 | GET | `/api/calendar` | Public calendar bookings |
+| GET | `/api/integrations` | Integration status (which services are configured) |
 | GET | `/webhooks/whatsapp` | WhatsApp webhook verification |
 | POST | `/webhooks/whatsapp` | WhatsApp webhook incoming message |
 | POST | `/webhooks/gmail` | Gmail webhook notification |
@@ -365,7 +366,7 @@ External API integrations live in `integrations/` and auto-detect credentials. P
 | Calendar (sync) | `integrations/calendar_client.py` | Google Calendar API (OAuth 2.0) | Logged mock |
 | Notifications | `integrations/clickup_client.py` | ClickUp API | Logged mock |
 | Task sync | `integrations/clickup_client.py` | ClickUp API | Logged mock |
-| Report delivery | `clients.py` → `ReportDeliveryClient` | Email / Slack | Logged mock |
+| Report delivery | `clients.py` → `ReportDeliveryClient` | Email | Logged mock |
 
 ### Pattern for extending an integration
 

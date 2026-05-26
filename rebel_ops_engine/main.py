@@ -187,7 +187,7 @@ def integration_status():
         "clickup": bool(os.getenv("CLICKUP_API_TOKEN")),
         "whatsapp": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
         "discord": bool(os.getenv("DISCORD_WEBHOOK_URL")),
-        "slack": bool(os.getenv("SLACK_WEBHOOK_URL")),
+
     })
 
 
