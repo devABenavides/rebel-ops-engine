@@ -21,7 +21,7 @@ from demo import DEMO_MESSAGES
 from integrations import clickup_client, discord_client
 from integrations import gmail_client as gmail
 from integrations import whatsapp_client as wa
-from integrations.config import ensure_env_loaded
+from integrations.config import ensure_env_loaded, get
 from models import Channel, Message, MessageStatus
 
 logging.basicConfig(
@@ -663,6 +663,7 @@ def calendar_confirm(message_id, slot):
     except Exception:
         pass
 
+    base_url = get("APP_BASE_URL", "http://localhost:5000")
     status_text = result.get("status", "error")
     if status_text == "mocked":
         status_text = "simulated (mock mode)"
@@ -674,7 +675,7 @@ def calendar_confirm(message_id, slot):
     <p><strong>Date:</strong> {date_str}<br>
     <strong>Time:</strong> {confirmed_slot} (America/Bogota)<br>
     <strong>Event:</strong> {status_text}</p>
-    <p><a href="http://localhost:5000/" style="color:#d4872a;">Back to Command Center</a></p>
+    <p><a href="{base_url}/" style="color:#d4872a;">Back to Command Center</a></p>
     </body></html>
     """
 
