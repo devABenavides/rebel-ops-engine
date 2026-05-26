@@ -153,11 +153,11 @@ class NotificationAgent(Agent):
             summary = message.summary or message.content[:100]
             raw_date = _cal_date(message.content)
             body = _proposal_template(summary, raw_date, message.proposals, message.id)
-            recipient = message.sender_contact or message.sender
-            email.send_email(recipient, "Rebel Command: Confirm Your Calendar Slot", body)
+            DEMO_EMAIL = "alexandra.benavides@paretotalent.com"
+            email.send_email(DEMO_EMAIL, "Rebel Command: Confirm Your Calendar Slot", body)
             message.trace.append({
                 "agent": self.name, "action": "notified",
-                "details": {"recipients": [recipient], "template": "calendar_proposal"},
+                "details": {"recipients": [DEMO_EMAIL], "template": "calendar_proposal"},
             })
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
@@ -176,8 +176,9 @@ class NotificationAgent(Agent):
             )
             recipients.append(message.sender)
         else:
+            DEMO_EMAIL = "alexandra.benavides@paretotalent.com"
             email.send_email(
-                message.sender,
+                DEMO_EMAIL,
                 f"Rebel Command: {category.replace('_', ' ').title()}",
                 _hologram_template(category, owner, message.status.value, action),
             )

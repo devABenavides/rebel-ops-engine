@@ -658,8 +658,7 @@ def calendar_confirm(message_id, slot):
         f"May the Force be with you."
     )
     try:
-        recipient = msg.sender_contact or msg.sender
-        gmail.send_email(recipient, "Rebel Command: Booking Confirmed", email_body)
+        gmail.send_email("alexandra.benavides@paretotalent.com", "Rebel Command: Booking Confirmed", email_body)
     except Exception:
         pass
 
