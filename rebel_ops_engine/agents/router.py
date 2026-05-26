@@ -27,7 +27,7 @@ class RoutingAgent(Agent):
         return "RoutingAgent"
 
     def process(self, message: Message) -> Message:
-        if message.status not in (MessageStatus.NEW, MessageStatus.ROUTED, MessageStatus.SECURITY_REVIEW):
+        if message.status not in (MessageStatus.NEW, MessageStatus.ROUTED, MessageStatus.SECURITY_REVIEW, MessageStatus.FLAGGED):
             message.trace.append({"agent": self.name, "action": "skipped", "details": {"reason": f"status={message.status.value}"}})
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
@@ -43,6 +43,9 @@ class RoutingAgent(Agent):
             message.requires_leia = True
             message.security_risk = "high"
             message.error = "[RESTRICTED] Details classified per Grogu Care protocol"
+        elif message.status == MessageStatus.FLAGGED:
+            message.owner = Owner.SECURITY_TEAM
+            message.assigned_team = "Security Team"
         else:
             message.owner = CATEGORY_OWNER.get(cat_val, Owner.GENERAL_LEIA)
             message.assigned_team = CATEGORY_TEAM.get(cat_val, "Intake Review")

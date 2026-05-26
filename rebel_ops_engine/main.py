@@ -79,7 +79,7 @@ def run_pipeline(message: Message) -> Message:
     message.status = MessageStatus.NEW
     message.trace = []
     for agent in PIPELINE:
-        if message.status in (MessageStatus.ERROR, MessageStatus.FLAGGED):
+        if message.status == MessageStatus.ERROR:
             break
         try:
             message = agent.process(message)
