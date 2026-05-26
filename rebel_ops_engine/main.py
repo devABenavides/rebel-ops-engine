@@ -451,9 +451,9 @@ def request_trace(message_id):
 
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
-    db.reset_all()
-    clickup_client.clear_list()
     discord_client.clear_messages()
+    clickup_client.clear_list()
+    db.reset_all()
     return jsonify({"status": "reset"}), 200
 
 
