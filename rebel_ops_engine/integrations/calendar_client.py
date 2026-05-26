@@ -1,6 +1,7 @@
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from integrations.config import get
 
@@ -17,6 +18,8 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/calendar.events"]
+
+_cached_timezone: str | None = None
 
 CALENDAR_CREDENTIALS_PATH = "credentials/calendar_oauth.json"
 CALENDAR_TOKEN_PATH = "credentials/calendar_token.json"
@@ -78,8 +81,8 @@ def check_availability(date_str: str = None) -> list[dict]:
     try:
         events_result = service.events().list(
             calendarId=calendar_id,
-            timeMin=start.isoformat() + "Z",
-            timeMax=end.isoformat() + "Z",
+            timeMin=start.isoformat(),
+            timeMax=end.isoformat(),
             singleEvents=True,
             orderBy="startTime",
         ).execute()
@@ -111,7 +114,9 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
     except ValueError:
         return []
 
-    cal_start = day.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+    tz_name = _get_calendar_timezone()
+    tz_obj = ZoneInfo(tz_name)
+    cal_start = day.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=tz_obj)
     cal_end = cal_start + timedelta(days=1)
     calendar_id = get("GOOGLE_CALENDAR_ID", "primary")
 
@@ -138,24 +143,21 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
             e_end = datetime.fromisoformat(end_str)
         except ValueError:
             continue
-        # Convert to UTC minutes since midnight for easy comparison
-        s_utc = s.astimezone(timezone.utc)
-        e_utc = e_end.astimezone(timezone.utc)
-        s_min = s_utc.hour * 60 + s_utc.minute
-        e_min = e_utc.hour * 60 + e_utc.minute
-        # Handle events that span across midnight (use full day if needed)
+        s_local = s.astimezone(tz_obj)
+        e_local = e_end.astimezone(tz_obj)
+        s_min = s_local.hour * 60 + s_local.minute
+        e_min = e_local.hour * 60 + e_local.minute
         if e_min <= s_min:
             e_min = 24 * 60
         for m in range(s_min, e_min):
             busy_minutes.add(m)
 
-    # Bogota is UTC-5, so 9 Bogota = 14 UTC, 17 Bogota = 22 UTC
-    work_start_utc = day_start + 5
-    work_end_utc = day_end + 5
+    work_start_local = day_start * 60
+    work_end_local = day_end * 60
 
     slots = []
-    cursor = work_start_utc * 60
-    limit = work_end_utc * 60
+    cursor = work_start_local
+    limit = work_end_local
     while cursor <= limit - duration_min and len(slots) < max_slots:
         free = True
         for m in range(cursor, cursor + duration_min):
@@ -163,10 +165,8 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
                 free = False
                 break
         if free:
-            # Convert UTC minutes to Bogota time for display
-            bogota_min = cursor - 5 * 60
-            h = bogota_min // 60
-            m = bogota_min % 60
+            h = cursor // 60
+            m = cursor % 60
             slots.append(f"{h:02d}:{m:02d}")
             cursor += duration_min
         else:
@@ -175,12 +175,34 @@ def find_available_slots(date_str: str, duration_min: int = 30, max_slots: int =
     return slots
 
 
+def _get_calendar_timezone() -> str:
+    global _cached_timezone
+    if _cached_timezone is not None:
+        return _cached_timezone
+
+    service = _get_service()
+    if service is None:
+        _cached_timezone = get("TIMEZONE", "UTC")
+        return _cached_timezone
+
+    try:
+        cal = service.calendars().get(calendarId=get("GOOGLE_CALENDAR_ID", "primary")).execute()
+        _cached_timezone = cal.get("timeZone", "UTC")
+        logger.info("[CALENDAR] Using timezone: %s", _cached_timezone)
+    except Exception as e:
+        logger.warning("[CALENDAR] Failed to detect timezone: %s", e)
+        _cached_timezone = get("TIMEZONE", "UTC")
+
+    return _cached_timezone
+
+
 def create_event(summary: str, date: str, time: str, attendees: list[str] = None) -> dict:
     service = _get_service()
     if service is None:
         logger.info("[CALENDAR MOCK] create_event(%s, %s, %s)", summary, date, time)
         return {"status": "mocked", "summary": summary, "date": date, "time": time}
 
+    tz = _get_calendar_timezone()
     start_dt = f"{date}T{time}:00"
     start_parsed = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
     end_parsed = start_parsed + timedelta(minutes=30)
@@ -188,8 +210,8 @@ def create_event(summary: str, date: str, time: str, attendees: list[str] = None
 
     event = {
         "summary": summary,
-        "start": {"dateTime": start_dt, "timeZone": get("TIMEZONE", "UTC")},
-        "end": {"dateTime": end_dt, "timeZone": get("TIMEZONE", "UTC")},
+        "start": {"dateTime": start_dt, "timeZone": tz},
+        "end": {"dateTime": end_dt, "timeZone": tz},
     }
     if attendees:
         event["attendees"] = [{"email": a} for a in attendees]

@@ -17,4 +17,7 @@ def ensure_env_loaded():
 
 def get(key: str, default: str = "") -> str:
     ensure_env_loaded()
-    return os.getenv(key, default)
+    val = os.getenv(key)
+    if val is None or val == "":
+        return default
+    return val
