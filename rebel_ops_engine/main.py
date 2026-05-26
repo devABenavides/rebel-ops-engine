@@ -18,7 +18,7 @@ from agents.security_agent import DarkSideSecurityAgent
 from briefing import generate_hologram_briefing
 from database import Database
 from demo import DEMO_MESSAGES
-from integrations import clickup_client
+from integrations import clickup_client, discord_client
 from integrations import gmail_client as gmail
 from integrations import whatsapp_client as wa
 from integrations.config import ensure_env_loaded
@@ -453,6 +453,7 @@ def request_trace(message_id):
 def api_reset():
     db.reset_all()
     clickup_client.clear_list()
+    discord_client.clear_messages()
     return jsonify({"status": "reset"}), 200
 
 
