@@ -196,7 +196,7 @@ def _get_calendar_timezone() -> str:
     return _cached_timezone
 
 
-def create_event(summary: str, date: str, time: str, attendees: list[str] = None) -> dict:
+def create_event(summary: str, date: str, time: str, description: str = "", attendees: list[str] = None) -> dict:
     service = _get_service()
     if service is None:
         logger.info("[CALENDAR MOCK] create_event(%s, %s, %s)", summary, date, time)
@@ -210,6 +210,7 @@ def create_event(summary: str, date: str, time: str, attendees: list[str] = None
 
     event = {
         "summary": summary,
+        "description": description,
         "start": {"dateTime": start_dt, "timeZone": tz},
         "end": {"dateTime": end_dt, "timeZone": tz},
     }

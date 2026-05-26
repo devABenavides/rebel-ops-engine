@@ -32,8 +32,8 @@ class CalendarClient:
         slots = cal.check_availability(date)
         return [s["start"] if isinstance(s, dict) else s for s in slots]
 
-    def create_event(self, summary: str, date: str, time: str, attendees: list[str] = None) -> dict:
-        return cal.create_event(summary, date, time, attendees)
+    def create_event(self, summary: str, date: str, time: str, description: str = "", attendees: list[str] = None) -> dict:
+        return cal.create_event(summary, date, time, description, attendees)
 
     def find_available_slots(self, date_str: str, duration_min: int = 30, max_slots: int = 3) -> list[str]:
         return cal.find_available_slots(date_str, duration_min, max_slots)

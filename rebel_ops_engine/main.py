@@ -636,10 +636,11 @@ def calendar_confirm(message_id, slot):
 
     chosen_time = msg.proposals[slot]
     date_str = _cal_date(msg.content)
-    summary = msg.summary or msg.content[:100]
+    short_title = f"{msg.subject[:50]} — {msg.sender}"
+    full_desc = f"Sender: {msg.sender}\nSubject: {msg.subject}\n\n{msg.content}"
 
     cal = _CalClient()
-    result = cal.create_event(summary, date_str, chosen_time)
+    result = cal.create_event(short_title, date_str, chosen_time, full_desc)
 
     confirmed_slot = msg.proposals[slot]
     msg.proposals = []

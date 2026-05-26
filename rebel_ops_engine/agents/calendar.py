@@ -122,7 +122,9 @@ class CalendarAgent(Agent):
 
             if not is_private and date_val != "unknown" and time_val != "unknown":
                 try:
-                    result = cal_client.create_event(booking.subject[:100], booking.date, booking.time)
+                    short_title = f"{booking.subject[:50]} — {booking.requestor}"
+                    full_desc = f"Requestor: {booking.requestor}\nSubject: {booking.subject}\nDate: {booking.date}\nTime: {booking.time}"
+                    result = cal_client.create_event(short_title, booking.date, booking.time, full_desc)
                     logger.info("Calendar event: %s", result.get("status", "unknown"))
                 except Exception as e:
                     logger.warning("Failed to create calendar event: %s", e)
