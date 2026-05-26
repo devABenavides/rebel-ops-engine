@@ -106,6 +106,11 @@ class Database:
                     created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS discord_messages (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
                 CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner);
@@ -366,6 +371,30 @@ class Database:
             created_at=datetime.fromisoformat(row["created_at"]),
         )
 
+    # ---- Discord Messages ----
+
+    def insert_discord_message(self, message_id: str):
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO discord_messages (id, created_at) VALUES (?, ?)",
+                (message_id, _now()),
+            )
+            self._conn.commit()
+
+    def get_all_discord_message_ids(self) -> list[str]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id FROM discord_messages ORDER BY created_at"
+            ).fetchall()
+            return [r["id"] for r in rows]
+
+    def delete_discord_message(self, message_id: str):
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM discord_messages WHERE id = ?", (message_id,)
+            )
+            self._conn.commit()
+
     # ---- Reset ----
 
     def reset_all(self):
@@ -375,6 +404,7 @@ class Database:
                 DELETE FROM tasks;
                 DELETE FROM calendar_bookings;
                 DELETE FROM encrypted_transmissions;
+                DELETE FROM discord_messages;
             """)
             self._conn.commit()
 
