@@ -101,6 +101,7 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
+  const [expandedId, setExpandedId] = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -167,11 +168,31 @@ export default function CommandCenter() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {leiaItems.map(m => (
-                  <div key={m.id} style={{ padding: '8px 10px', background: 'var(--paper-elev)', border: '1px solid var(--line)', borderRadius: 12 }}>
+                  <div key={m.id}
+                    onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--paper-elev)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 12,
+                      cursor: 'pointer',
+                    }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)' }}>{m.sender}</div>
                     <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>
                       {CATEGORY_LABELS[m.category] || m.category}
                     </div>
+                    {expandedId === m.id && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hairline)' }}>
+                        <div style={{ marginBottom: 6 }}>
+                          <span className={`st-badge ${m.status === 'completed' ? 'completed' : m.status === 'quarantined' ? 'quarantined' : m.status === 'error' ? 'error' : 'pending'}`}>
+                            {m.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5, padding: '8px 10px', background: 'var(--paper-deep)', borderRadius: 4 }}>
+                          {m.encrypted ? '[Encrypted Yoda Strategy - Content Hidden]' : m.content}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
