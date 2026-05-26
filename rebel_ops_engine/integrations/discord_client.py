@@ -19,11 +19,14 @@ def send_message(text: str) -> dict:
 
     payload = {"content": text[:2000]}
     try:
-        resp = requests.post(webhook_url, json=payload, timeout=15)
+        resp = requests.post(f"{webhook_url}?wait=true", json=payload, timeout=15)
         resp.raise_for_status()
-        msg_id = resp.json().get("id")
-        if msg_id:
-            _db.insert_discord_message(str(msg_id))
+        try:
+            msg_id = resp.json().get("id")
+            if msg_id:
+                _db.insert_discord_message(str(msg_id))
+        except Exception:
+            pass
         logger.info("[DISCORD] Sent — status=%s", resp.status_code)
         return {"status": "sent", "channel": "discord"}
     except requests.RequestException as e:
