@@ -105,6 +105,25 @@ def _request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
     raise RuntimeError("Unreachable")
 
 
+def add_comment(task_id: str, comment_text: str) -> dict:
+    headers = _headers()
+    if not headers:
+        logger.info("[CLICKUP MOCK] add_comment(%s)", task_id)
+        return {"status": "mocked", "task_id": task_id}
+
+    try:
+        resp = _request_with_retry(
+            "POST", f"{BASE_URL}/task/{task_id}/comment",
+            headers=headers, json={"comment_text": comment_text}, timeout=15,
+        )
+        data = resp.json()
+        logger.info("[CLICKUP] Comment added to task %s — id=%s", task_id, data.get("id"))
+        return {"status": "created", "id": data.get("id")}
+    except requests.RequestException as e:
+        logger.error("[CLICKUP] Failed to add comment: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
 def clear_list():
     headers = _headers()
     if not headers:

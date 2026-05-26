@@ -7,6 +7,7 @@ from clients import (
     WhatsAppClient,
 )
 from integrations import discord_client as dc
+from integrations.config import get
 from models import Message, MessageStatus
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ def _proposal_template(summary: str, date: str, slots: list[str], message_id: st
         "Available 30-minute slots:",
     ]
     for i, slot in enumerate(slots):
-        lines.append(f"  [{i + 1}] {slot} — http://localhost:5000/api/calendar/confirm/{message_id}/{i}")
+        base = get("APP_BASE_URL", "http://localhost:5000")
+        lines.append(f"  [{i + 1}] {slot} — {base}/api/calendar/confirm/{message_id}/{i}")
     lines.extend([
         "",
         "Click a link to confirm your preferred time.",

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from agents.base import Agent
 from clients import CalendarClient
 from database import Database
+from integrations.config import get
 from models import CalendarBooking, Message, MessageStatus
 from security import contains_private_leia_info
 
@@ -106,9 +107,10 @@ class CalendarAgent(Agent):
                 if slots:
                     message.proposals = slots
                     message.status = MessageStatus.AWAITING_CONFIRMATION
+                    base = get("APP_BASE_URL", "http://localhost:5000")
                     message.suggested_next_action = (
                         f"Choose a slot: {', '.join(slots)}. "
-                        f"Confirm at: http://localhost:5000/api/calendar/confirm/{message.id}/0"
+                        f"Confirm at: {base}/api/calendar/confirm/{message.id}/0"
                     )
                     message.trace.append({
                         "agent": self.name, "action": "proposed_slots",

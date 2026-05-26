@@ -39,7 +39,7 @@ class ErrorProtocolAgent(Agent):
                 status="open",
             )
             self._db.insert_task(task, source="error")
-            self._sync_clickup_async(task, message.content)
+            self._sync_clickup_async(task, message.content, message.error or "Review quarantined message")
             message.trace.append({"agent": self.name, "action": "quarantine_logged", "details": {"task_id": task.id}})
 
         elif message.status == MessageStatus.ERROR:
@@ -56,7 +56,7 @@ class ErrorProtocolAgent(Agent):
                 status="open",
             )
             self._db.insert_task(task, source="error")
-            self._sync_clickup_async(task, message.content)
+            self._sync_clickup_async(task, message.content, message.error or "Investigate processing error")
             message.trace.append({"agent": self.name, "action": "error_logged", "details": {"task_id": task.id}})
 
         else:
@@ -66,13 +66,13 @@ class ErrorProtocolAgent(Agent):
             message.processed_by.append(self.name)
         return message
 
-    def _sync_clickup_async(self, task: Task, content: str = ""):
+    def _sync_clickup_async(self, task: Task, content: str = "", comment_text: str = ""):
         with self._lock:
             self._clickup_results[task.id] = {"status": "initiated"}
-        thread = threading.Thread(target=self._sync_clickup, args=(task, content))
+        thread = threading.Thread(target=self._sync_clickup, args=(task, content, comment_text))
         thread.start()
 
-    def _sync_clickup(self, task: Task, content: str = ""):
+    def _sync_clickup(self, task: Task, content: str = "", comment_text: str = ""):
         result = clickup_client.create_task(
             title=task.title,
             description=task.description,
@@ -87,6 +87,8 @@ class ErrorProtocolAgent(Agent):
             logger.info("[CLICKUP] Error task %s synced (mock)", task.id)
         elif result["status"] == "created":
             logger.info("[CLICKUP] Error task %s created - id=%s", task.id, result.get("id"))
+            if comment_text:
+                clickup_client.add_comment(result["id"], comment_text)
         else:
             logger.warning("[CLICKUP] Error task %s failed: %s", task.id, result.get("error"))
 

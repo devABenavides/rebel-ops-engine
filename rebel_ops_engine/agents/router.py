@@ -67,7 +67,7 @@ class RoutingAgent(Agent):
 
         with self._lock:
             self._clickup_results[task.id] = {"status": "initiated"}
-        thread = threading.Thread(target=self._sync_clickup, args=(task, message.content))
+        thread = threading.Thread(target=self._sync_clickup, args=(task, message.content, message.suggested_next_action))
         thread.start()
 
         logger.debug(
@@ -91,7 +91,7 @@ class RoutingAgent(Agent):
             message.processed_by.append(self.name)
         return message
 
-    def _sync_clickup(self, task: Task, content: str = ""):
+    def _sync_clickup(self, task: Task, content: str = "", next_action: str = ""):
         result = clickup_client.create_task(
             title=task.title,
             description=task.description,
@@ -106,6 +106,8 @@ class RoutingAgent(Agent):
             logger.info("[CLICKUP] Task %s synced (mock)", task.id)
         elif result["status"] == "created":
             logger.info("[CLICKUP] Task %s created - id=%s", task.id, result.get("id"))
+            if next_action:
+                clickup_client.add_comment(result["id"], next_action)
         else:
             logger.warning("[CLICKUP] Task %s failed: %s", task.id, result.get("error"))
 
