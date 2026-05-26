@@ -6,6 +6,7 @@ from clients import (
     NotificationClient,
     WhatsAppClient,
 )
+from integrations import discord_client as dc
 from models import Message, MessageStatus
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,11 @@ class NotificationAgent(Agent):
             if message.status == MessageStatus.QUARANTINED:
                 alert = _quarantine_template(message.sender, message.dark_side_indicators)
                 notifier.notify("Security Team", alert)
+                inds = ', '.join(message.dark_side_indicators[:3])
+                dc.send_message(
+                    f"**Security Alert — Quarantined**\n"
+                    f"Sender: {message.sender}\nIndicators: {inds}\nRisk: {message.security_risk}"
+                )
             message.trace.append({"agent": self.name, "action": "notified", "details": {"recipient": "Security Team", "template": "quarantine_alert"}})
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
@@ -179,6 +185,7 @@ class NotificationAgent(Agent):
 
         if category == "urgent_security":
             notifier.notify("Security Team", _bb8_alert(summary, message.priority))
+            dc.send_message(f"**🚨 BB-8 Alert — Urgent Security**\n{summary}\nPriority: {message.priority}")
             recipients.append("Security Team")
 
         if category == "ahsoka_special_mission":

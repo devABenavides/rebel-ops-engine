@@ -229,7 +229,7 @@ export default function MorningBriefing() {
           <div className="side-card">
             <h4>Connected sources</h4>
             {integrations ? (
-              [["gmail","Gmail"],["calendar","Calendar"],["clickup","ClickUp"],["whatsapp","WhatsApp"],["slack","Slack"]].map(([key, label]) => (
+              [["gmail","Gmail"],["calendar","Calendar"],["clickup","ClickUp"],["whatsapp","WhatsApp"],["discord","Discord"],["slack","Slack"]].map(([key, label]) => (
                 <div key={key} className="source-row">
                   <span><span className="status-dot" style={{background: integrations[key] ? '#10b981' : '#8e8e88'}}></span>{label}</span>
                   <span className={integrations[key] ? 'live' : 'off'}>{integrations[key] ? 'live' : 'mock'}</span>

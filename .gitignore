@@ -12,7 +12,9 @@ build/
 *.pyc
 node_modules/
 .vite/
-frontend/dist/
+# frontend/dist/ is tracked (needed for PythonAnywhere deployment)
+!rebel_ops_engine/frontend/dist/
+!rebel_ops_engine/frontend/dist/**
 credentials/*_oauth.json
 credentials/*_token.json
 rebel_ops_engine/credentials/*_oauth.json
