@@ -559,7 +559,7 @@ def briefing_inbox():
             "status": m.status.value,
             "encrypted": m.encrypted,
             "risk_score": m.risk_score,
-            "content": m.content[:200] if m.content else "",
+            "content": m.content or "",
         }
         for m in msgs if m.requires_leia
     ]
