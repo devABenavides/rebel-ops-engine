@@ -166,7 +166,11 @@ export default function MorningBriefing() {
                           <div><span style={{color: 'var(--muted)'}}>Risk Score: </span>{item.risk_score}</div>
                           <div><span style={{color: 'var(--muted)'}}>Received: </span>{new Date(item.timestamp).toLocaleString()}</div>
                         </div>
-                        {item.encrypted && <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12}}>Encrypted Yoda Strategy — Content Hidden</div>}
+                        {item.encrypted ? (
+                          <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12}}>Encrypted Yoda Strategy — Content Hidden</div>
+                        ) : item.content ? (
+                          <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--paper-deep)', borderRadius: 6, fontSize: 13, lineHeight: 1.6}}>{item.content}</div>
+                        ) : null}
                       </div>
                     )}
                   </div>
