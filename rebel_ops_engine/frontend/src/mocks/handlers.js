@@ -26,7 +26,7 @@ const mockInbox = {
   quarantined: 1,
   encrypted: 1,
   needs_attention: [
-    { id: 'msg-4', sender: 'Bail Organa', channel: 'hologram_email', category: 'calendar_booking', subject: 'Meeting request for next week', priority: 'medium', encrypted: false, status: 'completed' },
+    { id: 'msg-4', sender: 'Bail Organa', channel: 'hologram_email', category: 'calendar_booking', subject: 'Meeting request for next week', content: 'Meeting request for next week', priority: 'medium', encrypted: false, status: 'completed' },
   ],
   delegation: { 'Han Solo': 1, 'General Leia': 1, 'Security Team': 1, 'Yoda': 1 },
   schedule: [

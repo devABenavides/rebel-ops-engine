@@ -165,7 +165,9 @@ export default function MorningBriefing() {
                           <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12, marginTop: 8}}>Encrypted Yoda Strategy — Content Hidden</div>
                         ) : item.content ? (
                           <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--paper-deep)', borderRadius: 6, fontSize: 13, lineHeight: 1.6}}>{item.content}</div>
-                        ) : null}
+                        ) : (
+                          <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--paper-deep)', borderRadius: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--muted)', fontStyle: 'italic'}}>{item.subject}</div>
+                        )}
                       </div>
                     )}
                   </div>
