@@ -141,11 +141,15 @@ class NotificationAgent(Agent):
                 alert = _quarantine_template(message.sender, message.dark_side_indicators)
                 notifier.notify("Security Team", alert)
                 inds = ', '.join(message.dark_side_indicators[:3])
-                dc.send_message(
+                dc_result = dc.send_message(
                     f"**Security Alert — Quarantined**\n"
                     f"Sender: {message.sender}\nIndicators: {inds}\nRisk: {message.security_risk}"
                 )
-            message.trace.append({"agent": self.name, "action": "notified", "details": {"recipient": "Security Team", "template": "quarantine_alert"}})
+            dc_delivery = dc_result if message.status == MessageStatus.QUARANTINED else None
+            message.trace.append({
+                "agent": self.name, "action": "notified",
+                "details": {"recipient": "Security Team", "template": "quarantine_alert", "delivery_status": dc_delivery},
+            })
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
             return message
@@ -156,10 +160,10 @@ class NotificationAgent(Agent):
             raw_date = _cal_date(message.content)
             body = _proposal_template(summary, raw_date, message.proposals, message.id)
             DEMO_EMAIL = "alexandra.benavides@paretotalent.com"
-            email.send_email(DEMO_EMAIL, "Rebel Command: Confirm Your Calendar Slot", body)
+            email_result = email.send_email(DEMO_EMAIL, "Rebel Command: Confirm Your Calendar Slot", body)
             message.trace.append({
                 "agent": self.name, "action": "notified",
-                "details": {"recipients": [DEMO_EMAIL], "template": "calendar_proposal"},
+                "details": {"recipients": [DEMO_EMAIL], "template": "calendar_proposal", "delivery_status": email_result},
             })
             if self.name not in message.processed_by:
                 message.processed_by.append(self.name)
@@ -171,15 +175,22 @@ class NotificationAgent(Agent):
         action = message.suggested_next_action or "Review and respond"
 
         recipients = []
+        channel_result = None
         if message.channel.value == "intergalactic_whatsapp":
-            whatsapp.send_message(
-                message.sender,
-                f"[{category.upper()}] {summary[:200]}\nAssigned: {owner}\nNext: {action}",
-            )
+            phone = message.sender_contact or message.sender
+            if phone:
+                channel_result = whatsapp.send_message(
+                    phone,
+                    f"[{category.upper()}] {summary[:200]}\nAssigned: {owner}\nNext: {action}",
+                )
+                channel_result["to"] = phone
+            else:
+                logger.warning("[WHATSAPP] No phone number or sender name — skipping send")
+                channel_result = {"status": "skipped", "channel": "whatsapp", "reason": "no_recipient"}
             recipients.append(message.sender)
         else:
             DEMO_EMAIL = "alexandra.benavides@paretotalent.com"
-            email.send_email(
+            channel_result = email.send_email(
                 DEMO_EMAIL,
                 f"Rebel Command: {category.replace('_', ' ').title()}",
                 _hologram_template(category, owner, message.status.value, action),
@@ -188,7 +199,7 @@ class NotificationAgent(Agent):
 
         if category == "urgent_security":
             notifier.notify("Security Team", _bb8_alert(summary, message.priority))
-            dc.send_message(f"**🚨 BB-8 Alert — Urgent Security**\n{summary}\nPriority: {message.priority}")
+            dc_result = dc.send_message(f"**🚨 BB-8 Alert — Urgent Security**\n{summary}\nPriority: {message.priority}")
             recipients.append("Security Team")
 
         if category == "ahsoka_special_mission":
@@ -210,9 +221,12 @@ class NotificationAgent(Agent):
             notifier.notify("Yoda", _yoda_template(summary, message.security_risk, action))
             recipients.append("Yoda")
 
+        delivery_statuses = {"channel": channel_result}
+        if category == "urgent_security":
+            delivery_statuses["discord_bb8"] = dc_result
         message.trace.append({
             "agent": self.name, "action": "notified",
-            "details": {"recipients": recipients, "template": category},
+            "details": {"recipients": recipients, "template": category, "delivery_statuses": delivery_statuses},
         })
 
         logger.info(

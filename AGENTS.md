@@ -29,14 +29,23 @@ cd rebel_ops_engine && python -m ruff check .
 ```
 
 ## Frontend
+
+### Dev server
 ```bash
 cd rebel_ops_engine/frontend && npm run dev
+```
+
+### Frontend tests (Vitest + MSW + Testing Library)
+```bash
+cd rebel_ops_engine/frontend && npm test            # run once
+cd rebel_ops_engine/frontend && npm run test:watch   # watch mode
+cd rebel_ops_engine/frontend && npm run test:coverage # with coverage
 ```
 
 ## Key files
 - `main.py` — Flask app, 20+ routes, pipeline orchestrator
 - `models.py` — Message, Task, EncryptedTransmission, CalendarBooking, DailyBriefing dataclasses + enums (Channel, MessageStatus, Priority, SecurityRisk, JediCaseType, Category, Owner)
-- `database.py` — SQLite persistence layer (4 tables: messages, tasks, calendar_bookings, encrypted_transmissions)
+- `database.py` — SQLite persistence layer (5 tables: messages, tasks, calendar_bookings, encrypted_transmissions, discord_messages)
 - `security.py` — Risk scoring, category→owner/team mapping, routing tables, keyword detection
 - `clients.py` — Integration client interfaces (WhatsAppClient, HologramEmailClient, CalendarClient, NotificationClient, ReportDeliveryClient)
 - `agents/` — 9 agents in pipeline order (NotificationAgent uses channel-specific templates: WhatsApp, hologram, quarantine, BB-8 alert, etc.)
@@ -47,9 +56,16 @@ cd rebel_ops_engine/frontend && npm run dev
 - `tests/test_agents.py` — 70 isolated unit tests
 - `tests/test_security.py` — 54 pure unit tests for security functions
 - `tests/test_briefing.py` — 15 unit tests for briefings
-- **Total: 203 tests** — run with `python -m pytest tests/ -v`
+- `tests/test_database.py` — 33 database persistence unit tests
+- `tests/test_clients.py` — 27 client interface test suite
+- `tests/test_routes.py` — 27 route contract edge case tests
+- `tests/test_pipeline.py` — 8 pipeline orchestration tests
+- **Total: 368 tests** (300 backend + 68 frontend) — backend: `python -m pytest tests/ -v`, frontend: `cd frontend && npm test`
 - `tests/conftest.py` — Shared fixtures (base_message, fresh_router, etc.)
 - `frontend/src/` — React app with 9 page-level components + CSS
+- `frontend/src/mocks/` — MSW handlers (15 endpoints) for frontend tests
+- `frontend/vite.config.js` — Vite config with Vitest test environment (jsdom)
+- `frontend/src/test-setup.js` — Test bootstrap (jest-dom matchers, MSW lifecycle)
 - `pyproject.toml` — Ruff linter config
 
 ## Agent pipeline order

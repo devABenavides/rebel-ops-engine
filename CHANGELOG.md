@@ -3,7 +3,7 @@
 ## [2.1.0] — 2026-05-25
 
 ### Added
-- **SQLite persistence** — new `database.py` module with 4 tables (messages, tasks, calendar_bookings, encrypted_transmissions), WAL journaling, JSON serialization for complex fields
+- **SQLite persistence** — new `database.py` module with 5 tables (messages, tasks, calendar_bookings, encrypted_transmissions, discord_messages), WAL journaling, JSON serialization for complex fields
 - **Shared Database instance** — all storage-backed agents (ReportingAgent, RoutingAgent, ErrorProtocolAgent, CalendarAgent, YodaEncryptionAgent) accept a shared `Database` instance; defaults to `:memory:` for test isolation
 - **Team Directory frontend page** — `Owners.jsx` with 19-character owner reference table including workflow role and business meaning
 - **Missing status values** — `SCHEDULED`, `IN_PROGRESS`, `ESCALATED_TO_LEIA` added to `MessageStatus` enum

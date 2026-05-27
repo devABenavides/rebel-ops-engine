@@ -93,7 +93,7 @@ export default function App() {
       </div>
       <div className="main">
         <ErrorBoundary key={page}>
-          <PageComponent key={page + '-' + refreshKey} onMessageSent={refresh} />
+          <PageComponent key={page === 'intake' ? page : page + '-' + refreshKey} onMessageSent={refresh} />
         </ErrorBoundary>
       </div>
     </div>

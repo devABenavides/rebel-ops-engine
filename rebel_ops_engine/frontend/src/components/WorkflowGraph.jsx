@@ -181,6 +181,7 @@ const NODE_ICONS = {
   leia: '/icons/Leia.png',
   solo: '/icons/Han Solo.png',
   yoda: '/icons/Yoda.png',
+  ahsoka: '/icons/Ahsoka Tano.png',
   djarin: '/icons/Din Djarin.png',
   r2: '/icons/R2D2.png',
   quarantine: '/icons/Quarentene.png',
@@ -191,6 +192,7 @@ const OWNER_ICONS = {
   leia: '/icons/Leia.png',
   solo: '/icons/Han Solo.png',
   yoda: '/icons/Yoda.png',
+  ahsoka: '/icons/Ahsoka Tano.png',
   djarin: '/icons/Din Djarin.png',
   r2: '/icons/R2D2.png',
 }

@@ -40,8 +40,8 @@ export const api = {
   calendar: (signal) => request('GET', '/calendar', undefined, signal),
   tasks: (signal) => request('GET', '/tasks', undefined, signal),
   trace: (id, signal) => request('GET', `/requests/${id}/trace`, undefined, signal),
-  intake: (channel, sender, content, signal) =>
-    request('POST', '/intake', { channel, sender, content }, signal),
+  intake: (channel, sender, content, senderContact, signal) =>
+    request('POST', '/intake', { channel, sender, content, sender_contact: senderContact }, signal),
   demoLoad: (signal) => request('POST', '/demo/load', undefined, signal, 60000),
   reset: (signal) => request('POST', '/reset', undefined, signal),
   inbox: (signal) => request('GET', '/briefing/inbox', undefined, signal),

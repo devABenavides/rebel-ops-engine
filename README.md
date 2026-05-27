@@ -67,17 +67,13 @@ With this system:
 
 | Layer | Technology |
 |---|---|
-| Backend | Developed on Python 3.14 alpha — 3.12+ recommended, Flask 3.1 |
+| Backend | Python 3.12+ (CI tests on 3.14), Flask 3.1 |
 | Frontend | React 19, Vite 6, JavaScript (JSX), plain CSS |
 | Integrations | Gmail API, Google Calendar API, Meta WhatsApp Cloud API, ClickUp API |
 | Testing | pytest 8.3, pytest-cov |
 | Linting | ruff |
 | Auth (integrations) | OAuth 2.0 (Google), Bearer token (Meta, ClickUp) |
 | Config | python-dotenv, .env.example |
-
-## Demo
-
-[Screenshot / video link]
 
 ## Getting Started
 

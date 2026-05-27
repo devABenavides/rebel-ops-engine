@@ -142,8 +142,28 @@ copy .env.example .env      # Windows
 No environment variables are needed for the demo — all integrations are mocked.
 
 ---
-
 ## Demo Script
+
+[Screenshot / video link]
+### Dashboard — Command Center
+![Command Center](screenshots/command_center.png)
+*Real-time view of all active requests, security alerts, and routing status*
+
+### Workflow Graph
+![Workflow Graph](screenshots/workflow_graph.png)
+*Visual pipeline showing how each request moves through the 9-agent system*
+
+### Daily Hologram Briefing
+![Briefing](screenshots/briefing.png)
+*Automated daily summary delivered via Gmail — zero manual preparation*
+
+### Calendar Integration
+![Calendar](screenshots/calendar.png)
+*Automatic event booking via Google Calendar API with confirmation links*
+
+▶️ **[Watch the full demo on Loom](YOUR_LOOM_LINK_HERE)**
+*(3-minute walkthrough of a request moving through the complete pipeline)*
+
 
 ```bash
 # 1. Health check

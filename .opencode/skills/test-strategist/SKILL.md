@@ -42,6 +42,9 @@ Inspect the repository to understand:
 - Test data strategy
 - Setup files
 - Coverage configuration
+- Backend coverage configuration (scope, thresholds, reporters)
+- Frontend coverage configuration (provider, thresholds, reporters)
+- CI coverage integration (whether coverage is generated and reported)
 - Critical business logic
 - Security-sensitive flows
 - API route coverage
@@ -84,6 +87,17 @@ Look for:
 - Missing setup documentation
 - Tests requiring unavailable external services
 - Tests that are hard to run locally
+
+### Coverage Infrastructure
+
+Look for:
+
+- Coverage tool configured but not wired into CI (backend or frontend)
+- Coverage scope incomplete (key source modules omitted from measurement)
+- Missing frontend coverage config despite having a test framework
+- Coverage not generated in CI pipeline (no `--cov`, no `--coverage`, no upload step)
+- No coverage reporting service integration (Codecov, Coveralls)
+- Coverage thresholds absent or too lenient
 
 ### Coverage Quality
 
@@ -180,7 +194,16 @@ Include:
 - Current testing strengths
 - Current testing weaknesses
 
-## 2. Critical Testing Gaps
+## 2a. Coverage Status
+
+Brief summary of what coverage tooling exists per side:
+
+- **Backend**: tool, scope, CI status, reporting status
+- **Frontend**: tool, scope, CI status, reporting status
+
+Flag any mismatch between the two (e.g., backend has CI + coverage, frontend has neither).
+
+## 2b. Critical Testing Gaps
 
 List the highest-risk missing tests first.
 

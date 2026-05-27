@@ -11,6 +11,7 @@ const ICON_FILES = {
   'Han Solo': '/icons/Han Solo.png',
   'Chewbacca': '/icons/Chewbaca.png',
   'Grogu Care Team': '/icons/Grogu.png',
+  'Ahsoka Tano': '/icons/Ahsoka Tano.png',
   'Din Djarin': '/icons/Din Djarin.png',
   'Operations Team': '/icons/Operations.png',
   'Logistics Team': '/icons/Logistics.png',
