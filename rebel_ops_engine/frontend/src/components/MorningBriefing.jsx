@@ -161,13 +161,8 @@ export default function MorningBriefing() {
                         color: 'var(--ink-soft)',
                         lineHeight: 1.5,
                       }}>
-                        <div style={{display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8}}>
-                          <div><span style={{color: 'var(--muted)'}}>Status: </span><span className={`st-badge ${statusBadgeClass(item.status)}`}>{item.status}</span></div>
-                          <div><span style={{color: 'var(--muted)'}}>Risk Score: </span>{item.risk_score}</div>
-                          <div><span style={{color: 'var(--muted)'}}>Received: </span>{new Date(item.timestamp).toLocaleString()}</div>
-                        </div>
                         {item.encrypted ? (
-                          <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12}}>Encrypted Yoda Strategy — Content Hidden</div>
+                          <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12, marginTop: 8}}>Encrypted Yoda Strategy — Content Hidden</div>
                         ) : item.content ? (
                           <div style={{marginTop: 8, padding: '10px 12px', background: 'var(--paper-deep)', borderRadius: 6, fontSize: 13, lineHeight: 1.6}}>{item.content}</div>
                         ) : null}
