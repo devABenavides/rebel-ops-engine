@@ -20,6 +20,7 @@ export default function MorningBriefing() {
   const [integrations, setIntegrations] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [expandedId, setExpandedId] = useState(null)
   const toastBoxRef = useRef(null)
   const intervalRef = useRef(null)
 
@@ -134,7 +135,7 @@ export default function MorningBriefing() {
                 {data.needs_attention.map((item) => (
                   <div key={item.id}
                     className={`attention-item priority-${item.priority}`}
-                    onClick={() => toast({ title: item.sender, body: `${item.category.replace(/_/g, ' ')} — ${item.subject} — Priority: ${item.priority} · ${channelLabel(item.channel)}` })}>
+                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                     <span className="attention-av" style={{background: getInitialBg(item.sender)}}>{getInitials(item.sender)}</span>
                     <div>
                       <div className="attention-header">
@@ -150,6 +151,24 @@ export default function MorningBriefing() {
                       {item.encrypted && <span className="st-badge encrypted">ENCRYPTED</span>}
                       {item.status === 'quarantined' && <span className="st-badge quarantined">BLOCKED</span>}
                     </div>
+                    {expandedId === item.id && (
+                      <div style={{
+                        gridColumn: '1 / -1',
+                        marginTop: 12,
+                        paddingTop: 12,
+                        borderTop: '1px solid var(--hairline)',
+                        fontSize: 13,
+                        color: 'var(--ink-soft)',
+                        lineHeight: 1.5,
+                      }}>
+                        <div style={{display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8}}>
+                          <div><span style={{color: 'var(--muted)'}}>Status: </span><span className={`st-badge ${statusBadgeClass(item.status)}`}>{item.status}</span></div>
+                          <div><span style={{color: 'var(--muted)'}}>Risk Score: </span>{item.risk_score}</div>
+                          <div><span style={{color: 'var(--muted)'}}>Received: </span>{new Date(item.timestamp).toLocaleString()}</div>
+                        </div>
+                        {item.encrypted && <div style={{color: 'var(--rebel)', fontWeight: 600, fontSize: 12}}>Encrypted Yoda Strategy — Content Hidden</div>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
